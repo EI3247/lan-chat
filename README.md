@@ -1,79 +1,78 @@
-# LAN Chat (Local Area Network Instant Messaging & File Sharing System)
+# LAN Chat (局域网即时通讯与文件共享系统)
 
-[中文说明文档](README_CN.md) | **English**
+**中文说明文档** | [English](README_EN.md)
 
-> **Author**: [@EI3247](https://github.com/EI3247)  
-> **Repository**: [https://github.com/EI3247/lan-chat](https://github.com/EI3247/lan-chat)  
-> **License**: [MIT License](LICENSE)
+> **作者**: [@EI3247](https://github.com/EI3247)  
+> **开源地址**: [https://github.com/EI3247/lan-chat](https://github.com/EI3247/lan-chat)  
+> **开源协议**: [MIT License](LICENSE)
 
-A lightweight, out-of-the-box local area network (LAN) chatroom + private file cloud + WebRTC P2P high-speed file transfer system.  
-Built with **FastAPI + SQLite + Vanilla JavaScript**. Runs seamlessly as a single Docker container, ideal for home NAS, small teams, research labs, and office environments, enabling **fast multi-device cross-platform file transfer** (phones, PCs, tablets).
+轻量级、开箱即用的局域网聊天室 + 私人网盘 + WebRTC P2P 大文件直传系统。  
+采用 **FastAPI + SQLite + 原生 JavaScript** 构建，单个 Docker 容器即可快速部署，特别适合家庭 NAS、小团队、实验室及小型办公场景，支持手机、电脑、平板等**多端跨设备极速互传**。
 
-> 💡 **Tip**: Highly recommended to configure router DNS rewrites (via AdGuard Home, OpenWrt, or dnsmasq) to map your LAN IP to a short custom domain (e.g. `http://chat.lan:1111` or `http://l.cn:1111`) for effortless browser access without typing IP addresses.
-
----
-
-## ✨ Key Features & Highlights
-
-### 1. 🔑 Custom Identity Code (Account Recovery & Multi-Device Sync)
-- **Zero Friction Onboarding**: Users simply choose a nickname and avatar to start chatting immediately.
-- **Unique Identity Code (`id_code`)**: Every user is automatically assigned a unique 6-character recovery code, which can be customized at any time (supports custom text and Chinese characters).
-- **Optional Personal Password**: Users can set an optional password for their identity code for enhanced security.
-- **Cross-Browser & Multi-Device Account Inheritance**: When switching devices, changing browsers, or clearing browser cache, simply enter your **Identity Code (+ Password if set)** to instantly recover and inherit your account identity, personal avatar, private messages, and personal cloud files.
-- **Seamless Account Merging**: Any messages or files sent on the temporary guest session are automatically merged into the target account upon recovery.
-
-### 2. 💬 Instant Messaging & Hidden Admin Entry
-- **Real-Time Group & Private Chat**: High-concurrency WebSocket message delivery for text, emojis, rich media (images/video/audio), and files.
-- **Hidden Admin Command Entry**: No exposed admin buttons on the login/chat interface. Simply type your **Super Admin Password into the chat input box and send it**, and the system will automatically authenticate and redirect you to the `/admin` control dashboard.
-- **Message Management**: Support for editing, real-time withdraw (withdraw/restore), copy, and setting messages to Private/Public.
-- **User Cards & Online Detection**: Click on user avatars to view their card profile, recent messages, and check online status in real-time.
-
-### 3. ⚡ WebRTC P2P Direct File Transfer
-- **Direct P2P Streaming**: Device-to-device direct transfer within local networks. Does **not consume server disk or network bandwidth**.
-- **Multi-File Queue**: Select multiple files in one batch; the receiver confirms once, and files are streamed sequentially through a single WebRTC DataChannel.
-- **Large File Support**: Transfer files up to 5GB with 64KB chunking and flow control.
-- **Full Transfer Controls**: Cancel transfer or waiting at any stage, with realtime progress updates on both sender and receiver sides.
-
-### 4. 📂 Dual-Mode File Drive & Quick Drop
-- **Private & Public File Drive (`/files`)**:
-  - **Public Mode**: Files shared in group chat are accessible to all users.
-  - **Private Mode (Personal Cloud)**: Switch to private scope to view and manage only your own private files.
-  - **Filter by "My Uploads"**: Quickly filter files uploaded by the current logged-in user.
-  - **Batch & File Actions**: Set files to private/public, withdraw, or download with a single click.
-- **Quick Drop (Zero-DB Directory Sharing)**:
-  - Drop files directly into the `/data/quick_drop/` folder on the host/NAS.
-  - The web drive **instantly scans and displays** them in real-time without writing to the SQLite database.
-- **Responsive Waterfall Card Grid**:
-  - CSS Column waterfall flow layout, dynamically adapting from mobile 2 columns up to 5 columns on ultra-wide PC displays.
-  - On-the-fly video and image thumbnail previews.
-  - Plain text file online view and editing.
-
-### 5. 📱 Full-Platform & Lightweight WebView Friendly
-- Deeply adapted for PC, tablet, and mobile browsers.
-- **Broad Compatibility**: Built-in 3-layer fallback for low-version Android WebViews that lack native `<dialog>` or modern ES features (such as X-Browser, in-app WebViews).
-
-### 6. 🛡️ Security & Background Management (`/admin`)
-- **Dual-Layer Passwords**: 
-  - *Access Password*: Password to enter the chatroom (can be left empty for public access).
-  - *Super Password*: Password to enter the `/admin` control panel.
-- **Admin Capabilities**: Server-side pagination & search for users, messages, and uploaded files; file upload size limit (MB); IP auditing and message retraction.
-- **Self-Contained & Offline-Ready**: Docker image includes pre-bundled offline Python wheel packages and ffmpeg components.
+> 💡 **使用建议**：建议配合路由器 DNS 重写（如 AdGuard Home / OpenWrt / dnsmasq）将局域网 IP 重写为简短自定义域名（如 `http://chat.lan:1111` 或 `http://l.cn:1111`），局域网内各设备打开浏览器无需记 IP，访问更便捷。
 
 ---
 
-## 🚀 Quick Start
+## ✨ 核心特性与特色功能
 
-### 1. Using Docker Compose (Recommended)
+### 1. 🔑 自定义「身份码」多端继承与恢复机制
+- **零门槛即开即用**：首次进入只需输入昵称与选择头像，无需传统注册流程。
+- **独创身份码体系 (`id_code`)**：每个用户创建后系统自动分配一个唯一的 6 位身份码，用户可在设置页**随时修改为自定义身份码（支持中文字符）**。
+- **可选个人密码加固**：身份码本身即为恢复凭证；用户还可选择性设置个人密码，提供更高安全保护。
+- **换设备/跨浏览器无感继承**：在其他设备、新浏览器或清理缓存后，只需输入**「身份码（+密码）」**，即可秒级恢复认领原身份，**头像、私人消息、个人网盘文件无缝同步**。
+- **智能数据合并**：在恢复绑定时，当前临时设备上已发送的消息和文件会自动合并挂载到目标身份下，不会丢失任何数据。
 
-Clone the repository and start:
+### 2. 💬 即时通讯与隐蔽管理入口
+- **实时群聊与私聊**：基于 WebSocket 的高并发消息推送，支持发送文字、表情、图片、音视频与文件。
+- **暗号式管理入口**：登录界面和聊天室**不暴露任何后台管理按钮**。管理员只需在**聊天输入框中直接输入「超级管理密码」并发送**，系统将自动校验身份并无缝跳转至 `/admin` 后台管理面板。
+- **消息全生命周期管理**：支持消息在线编辑、实时撤回（撤回/恢复）、复制以及设为公开/私人可见。
+- **用户名片与在线检测**：点击头像查看名片详情与最近发言；发起 P2P 直传前自动检测对方是否在线，防止盲等。
+
+### 3. ⚡ WebRTC P2P 大文件直传
+- **点对点直传**：局域网内设备直接走 P2P 数据通道传输，**不经过服务器磁盘、不占用服务器上下行带宽**。
+- **多文件批量队列**：支持一次选中多个文件，接收方只需确认一次，系统自动单连接多文件复用传输。
+- **大文件支持**：支持最大 5GB 文件传输，采用 64KB 分片与智能流量控制。
+- **全程状态可控**：等待接受或传输过程中支持随时取消，发送与接收端实时同步传输进度与完成状态。
+
+### 4. 📂 双模式网盘与 Quick Drop 快捷投递
+- **公私双模式网盘 (`/files`)**：
+  - **公开模式**：浏览聊天室所有人共享的文件。
+  - **私人模式（个人网盘）**：一键切换私人视角，专属管理自己上传的私人文件。
+  - **「我的上传」筛选**：快速过滤当前登录用户上传的所有历史文件。
+  - **文件操作快捷菜单**：一键设为私人/公开、撤回文件、免解压在线查看/编辑纯文本文件。
+- **Quick Drop（免入库目录投递）**：
+  - 支持直接将文件扔进宿主机/NAS 的 `/data/quick_drop/` 文件夹。
+  - 网盘页**实时扫描即时呈现**，无需走上传流程，不写 SQLite 数据库，NAS 用户极为方便。
+- **响应式瀑布流布局**：
+  - 卡片自适应瀑布流排列，移动端 2 列，超宽屏 PC 端自动扩展至 5 列。
+  - 自动生成视频及图片缩略图，告别黑边与画面拉伸。
+
+### 5. 📱 全平台适配与轻量 WebView 兼容
+- 深度适配 PC 端、平板与手机端浏览器。
+- **全兼容兜底**：内置针对轻量级浏览器（如 X浏览器、各平台内置 WebView）的三层兼容方案，即使不支持原生 `<dialog>` 标签或最新 ES 语法的低版本内核也能顺畅使用。
+
+### 6. 🛡️ 安全与后台管理 (`/admin`)
+- **双层密码机制**：
+  - *访问密码*：首次进入聊天室时使用（留空可设为免密访问）。
+  - *超级密码*：进入 `/admin` 管理后台使用。
+- **全量后台运维**：支持用户、消息、文件的服务端分页与关键字搜索；支持动态配置文件上传大小限制（MB）；支持客户端 IP 审计与违规内容撤回。
+- **离线快速构建**：Docker 镜像内置离线 Python wheel 依赖包与 ffmpeg 组件，避免构建时由于外网依赖下载失败。
+
+---
+
+## 🚀 快速启动
+
+### 1. 使用 Docker Compose（推荐）
+
+克隆仓库后直接启动：
 
 ```bash
 docker compose up -d
 ```
 
-The service will be accessible at `http://<your-lan-ip>:1111`.
+默认配置下服务将运行在 `http://你的局域网IP:1111`。
 
-### 2. Configuration (`docker-compose.yml`)
+### 2. 配置文件说明 (`docker-compose.yml`)
 
 ```yaml
 services:
@@ -85,45 +84,45 @@ services:
       - "1111:1111"
     command: ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "1111", "--proxy-headers", "--forwarded-allow-ips", "*"]
     environment:
-      # Access Password: Required when joining chat (leave empty for public)
+      # 访问密码：首次进入聊天室时使用（留空则免密）
       LANCHAT_ACCESS_PASSWORD: "change_this_access_password"
-      # Admin Super Password: Type into chat box and send to jump to /admin
+      # 超级管理密码：在聊天输入框输入此密码发送直接进入 /admin
       LANCHAT_ADMIN_PASSWORD: "change_this_admin_password"
-      # Session signature secret key
+      # 会话签名密钥（建议修改为随机字符串）
       LANCHAT_SECRET_KEY: "change-this-secret-lan-chat-key"
       LANCHAT_DATA_DIR: "/data"
       LANCHAT_SITE_TITLE: "LAN Chat"
-      LANCHAT_WELCOME: "Local Chatroom"
+      LANCHAT_WELCOME: "局域网聊天室"
     volumes:
       - ./data:/data
 ```
 
 ---
 
-## 📁 Directory Structure & Data Persistence
+## 📁 目录结构与数据持久化
 
-All user data is persistently saved in the mounted `./data` directory:
+容器会将数据持久化在挂载的 `./data` 目录下：
 
 ```
 data/
-├── chat.db          # SQLite database (Users, messages, file metadata)
-├── uploads/         # User uploaded files
-├── quick_drop/      # Quick drop directory (dropped files display directly without DB records)
-├── previews/        # Auto-generated image and video thumbnails
-├── avatars/         # User custom avatars
-└── tmp_uploads/     # Temporary chunk upload buffer
+├── chat.db          # SQLite 数据库（用户信息、消息、文件索引）
+├── uploads/         # 用户上传的文件存储
+├── quick_drop/      # 快捷投递目录（直接扔进该目录的文件自动在网盘展示，不写库）
+├── previews/        # 视频/图片自动生成的缩略图
+├── avatars/         # 用户自定义头像
+└── tmp_uploads/     # 大文件分片上传临时缓存
 ```
 
 ---
 
-## 🛠️ 技术栈 / Tech Stack
+## 🛠️ 技术栈
 
-- **Backend**: Python 3.11, FastAPI, Uvicorn, SQLite3, ffmpeg
-- **Frontend**: Vanilla HTML5 / CSS3 / JavaScript (Zero build step, lightweight & fast)
-- **Protocol**: WebSocket (Hub Pool) + WebRTC (RTCDataChannel)
+- **后端**：Python 3.11, FastAPI, Uvicorn, SQLite3, ffmpeg
+- **前端**：原生 HTML5 / CSS3 / JavaScript (无额外 Node.js 构建链，轻量高效)
+- **协议通信**：WebSocket (Hub 连接池) + WebRTC (RTCDataChannel)
 
 ---
 
-## 📄 License
+## 📄 开源协议
 
-This project is licensed under the [MIT License](LICENSE).
+本项目基于 [MIT License](LICENSE) 开源。
