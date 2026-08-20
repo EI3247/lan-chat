@@ -53,7 +53,7 @@ function fileBlock(f){ if(!f) return ''; let view=f.public_view_url||f.view_url|
 }
 function fileMenuButtons(f){ if(!f) return ''; let url=f.public_download_url||f.url, view=f.public_view_url||f.view_url||f.url;
   if(f.kind==='image') return `<a href="${url}" download>下载</a><button data-open="${view}">大图</button>`;
-  if(f.kind==='text') return `<button data-text-file="${f.id}">编辑</button><a href="${url}" download>下载</a>`;
+  if(f.kind==='text'){let isOwn=me&&(f.user_id===me.id||f.is_owner); return `<button data-text-file="${f.id}">${isOwn?'编辑':'查看'}</button><a href="${url}" download>下载</a>`;}
   return `<a href="${url}" download>下载</a>`;
 }
 function renderMessage(m){
@@ -281,7 +281,7 @@ async function openUserInfo(uid){
         const restore=mineProfile?`<button type="button" data-info-restore="${m.id}">恢复</button>`:'';
         return `<div class="info-msg info-msg-withdrawn"><div class="info-msg-time">${fmt(m.created_at)}</div><pre>（已撤回）${m.file?' '+escapeHtml('['+m.file.kind+'] '+m.file.name):''}</pre><div class="actions">${restore}</div></div>`;
       }
-      return `<div class="info-msg"><div class="info-msg-time">${fmt(m.created_at)}${m.edited?' · 已编辑':''}</div>${infoMedia(m)}<pre>${escapeHtml(compactContent(m))}</pre><div class="actions"><button type="button" data-info-copy="${m.id}">复制</button>${m.file&&m.file.kind==='text'?`<button type="button" data-text-file="${m.file.id}">编辑</button>`:''}${m.file?`<a href="${m.file.url}" download>下载</a>`:''}${mineProfile&&!m.withdrawn?`<button type="button" class="danger" data-info-withdraw="${m.id}">撤回</button>`:''}</div></div>`;
+      return `<div class="info-msg"><div class="info-msg-time">${fmt(m.created_at)}${m.edited?' · 已编辑':''}</div>${infoMedia(m)}<pre>${escapeHtml(compactContent(m))}</pre><div class="actions"><button type="button" data-info-copy="${m.id}">复制</button>${m.file&&m.file.kind==='text'?`<button type="button" data-text-file="${m.file.id}">${(me&&(m.file.user_id===me.id||m.user_id===me.id))?'编辑':'查看'}</button>`:''}${m.file?`<a href="${m.file.url}" download>下载</a>`:''}${mineProfile&&!m.withdrawn?`<button type="button" class="danger" data-info-withdraw="${m.id}">撤回</button>`:''}</div></div>`;
     }).join('')||'<div class="empty-note">暂无聊天记录</div>';
     const uiDlg=$('#userInfoDialog'); if(uiDlg) uiDlg.dataset.uid=uid;
     showDialog(uiDlg);
@@ -292,12 +292,12 @@ function openCopyPanel(txt){ const ta=$('#copyTextArea'); ta.value=String(txt||'
 function setTextFileMode(mode){
   const dlg=$('#textFileDialog'), ta=$('#textFileContent'); if(!dlg||!ta)return;
   const edit=mode==='edit'; dlg.dataset.mode=edit?'edit':'view'; ta.readOnly=!edit; ta.classList.toggle('readonly',!edit); $('#textFileTitle')?.classList.toggle('editing-title',edit);
-  document.querySelectorAll('[data-text-view]').forEach(x=>x.classList.toggle('hidden',edit));
+  document.querySelectorAll('[data-text-view]').forEach(x=>{if(x.id==='editTextFile'&&dlg.dataset.isOwner==='0'){x.classList.add('hidden')}else{x.classList.toggle('hidden',edit)}});
   document.querySelectorAll('[data-text-edit]').forEach(x=>x.classList.toggle('hidden',!edit));
   // 不自动聚焦，避免移动端键盘/视口导致文本编辑页上下跳动。
 }
 async function openTextFile(fid){
-  try{ const d=await api(`/api/file/${fid}/text`); const dlg=$('#textFileDialog'), ta=$('#textFileContent'); dlg.dataset.fid=fid; dlg.dataset.original=d.content; $('#textFileTitle').textContent=d.name; $('#textFileMeta').textContent=`${size(d.size)} · ${d.encoding}`; ta.value=d.content; setTextFileMode('view'); showDialog(dlg) }catch(e){toast('文本文件打开失败')}
+  try{ const d=await api(`/api/file/${fid}/text`); const dlg=$('#textFileDialog'), ta=$('#textFileContent'); dlg.dataset.fid=fid; dlg.dataset.isOwner=d.is_owner?'1':'0'; dlg.dataset.original=d.content; $('#textFileTitle').textContent=d.name; $('#textFileMeta').textContent=`${size(d.size)} · ${d.encoding}`; ta.value=d.content; setTextFileMode('view'); showDialog(dlg) }catch(e){toast('文本文件打开失败')}
 }
 function fileKindIcon(kind){return kind==='image'?'🖼️':kind==='video'?'🎬':kind==='audio'?'🎵':kind==='text'?'📝':'📄'}
 function fileInfoMarkup(f, rows, openUrl, downUrl, escFn=escapeHtml){

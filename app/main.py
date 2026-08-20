@@ -39,8 +39,8 @@ DB_PATH = DATA_DIR / 'chat.db'
 SITE_TITLE = os.getenv('LANCHAT_SITE_TITLE', 'LAN Chat')
 WELCOME = os.getenv('LANCHAT_WELCOME', '局域网聊天室')
 FILES_TITLE = os.getenv('LANCHAT_FILES_TITLE', '文件目录')
-APP_VERSION = '20260815.1528'
-APP_UPDATED_AT = '2026-08-15 15:28 Asia/Shanghai'
+APP_VERSION = "1787215979"
+APP_UPDATED_AT = "1787215979"
 APP_CHANGELOG = [
     '修复竖屏视频在网盘页和个人资料页显示不全：网盘页视频缩略图改用 cover 填满预览区，资料页媒体容器改为高度自适应，竖屏视频不再被压成细条。',
     'P2P 文件直传（WebRTC）：点别人头像可发起直传，对方在线时弹窗确认后通过 WebRTC DataChannel 直接传输文件，不经服务器存储。含在线检测、进度条、流控。最大 5GB。',
@@ -1277,7 +1277,8 @@ def public_file_preview(fid: str, request: Request):
 
 @app.get('/api/file/{fid}/text')
 def read_text_file(fid: str, request: Request):
-    require_user_or_admin(request); f=get_file_row(fid)
+    require_user_or_admin(request); u=get_current_user(request); admin=is_admin(request)
+    f=get_file_row(fid)
     if not f: raise HTTPException(404)
     if file_kind(f['original_name'], f['mime']) != 'text': raise HTTPException(400, '不是可在线查看的文本文件')
     p=safe_file_path(f)
@@ -1290,7 +1291,8 @@ def read_text_file(fid: str, request: Request):
     except UnicodeDecodeError:
         text=raw.decode('gb18030', errors='replace')
         encoding='gb18030/replace'
-    return {'id': f['id'], 'name': f['original_name'], 'size': f['size'], 'mime': f['mime'], 'encoding': encoding, 'content': text}
+    is_owner = bool(admin or (u and f['user_id'] == u['id']))
+    return {'id': f['id'], 'user_id': f['user_id'], 'is_owner': is_owner, 'name': f['original_name'], 'size': f['size'], 'mime': f['mime'], 'encoding': encoding, 'content': text}
 
 @app.patch('/api/file/{fid}/text')
 async def update_text_file(fid: str, request: Request):
