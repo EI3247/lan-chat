@@ -2,6 +2,10 @@
 
 **中文说明文档** | [English](README.md)
 
+> **作者**: [@EI3247](https://github.com/EI3247)  
+> **开源地址**: [https://github.com/EI3247/lan-chat](https://github.com/EI3247/lan-chat)  
+> **开源协议**: [MIT License](LICENSE)
+
 轻量级、开箱即用的局域网聊天室 + 私人网盘 + WebRTC P2P 大文件直传系统。  
 采用 **FastAPI + SQLite + 原生 JavaScript** 构建，单个 Docker 容器即可快速部署，特别适合家庭 NAS、小团队、实验室及小型办公场景。
 

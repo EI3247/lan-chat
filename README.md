@@ -2,6 +2,10 @@
 
 [中文说明文档](README_CN.md) | **English**
 
+> **Author**: [@EI3247](https://github.com/EI3247)  
+> **Repository**: [https://github.com/EI3247/lan-chat](https://github.com/EI3247/lan-chat)  
+> **License**: [MIT License](LICENSE)
+
 A lightweight, out-of-the-box local area network (LAN) chatroom + private file cloud + WebRTC P2P high-speed file transfer system.  
 Built with **FastAPI + SQLite + Vanilla JavaScript**. Runs seamlessly as a single Docker container, ideal for home NAS, small teams, research labs, and office environments.
 
