@@ -1,0 +1,29 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Data & Database (用户实际数据目录)
+data/
+*.db
+*.sqlite3
+
+# Uploads & temporary files
+uploads/
+previews/
+avatars/
+tmp_uploads/
+quick_drop/
+
+# Backups
+*.bak*
+*.bak
+
+# Environment variables
+.env
+
+# OS / Editor files
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/

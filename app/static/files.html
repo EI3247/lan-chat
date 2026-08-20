@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="zh-CN">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>文件目录 - LAN Chat</title><link rel="stylesheet" href="/static/style.css?v=1786778939"><link rel="icon" href="/favicon.ico?v=1786778939"></head>
+<body class="files-page">
+<div class="page-shell">
+  <header class="topbar glass file-titlebar"><div class="title-wrap"><div class="logo">📁</div><div><h1>文件目录</h1></div></div></header>
+  <div id="fileModeSeg" class="mode-seg file-mode-seg"><button type="button" class="mode-opt" data-mode-opt="public">💬 群聊文件</button><button type="button" class="mode-opt" data-mode-opt="private">🔒 私人文件</button></div>
+  <section class="file-toolbar glass file-bottom-bar"><input id="q" placeholder="搜索文件名"><select id="kind"><option value="">全部类型</option><option value="image">图片</option><option value="video">视频</option><option value="audio">音频</option><option value="text">文本</option><option value="file">文件</option><option value="mine">我的上传</option></select><button id="refresh" class="primary">刷新</button><a class="ghost bottom-nav" href="/">聊天</a></section>
+  <main id="files" class="file-list"></main>
+</div>
+<button id="filesScrollBottom" class="scroll-bottom-fab" type="button" title="一键到底" aria-label="一键到底">↓<span class="fab-dot"></span></button>
+
+<dialog id="textFileDialog" class="dialog full-dialog">
+  <form method="dialog" class="dialog-card compose-card" onsubmit="event.preventDefault()">
+    <div class="compose-head"><h2 id="textFileTitle">文本文件</h2><span id="textFileMeta"></span></div>
+    <textarea id="textFileContent" readonly></textarea>
+    <div class="dialog-actions text-file-actions">
+      <button id="closeTextFile" type="button" class="ghost" data-text-view>关闭</button>
+      <button id="editTextFile" type="button" class="primary" data-text-view>编辑</button>
+      <button id="cancelTextFile" type="button" class="ghost hidden" data-text-edit>取消</button>
+      <button id="saveTextFile" type="button" class="primary hidden" data-text-edit>保存</button>
+    </div>
+  </form>
+</dialog>
+<div id="toast" class="toast hidden"></div>
+<script src="/static/files.js?v=1786778939"></script>
+</body></html>

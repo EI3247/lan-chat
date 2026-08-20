@@ -1,0 +1,14 @@
+fastapi==0.115.6
+uvicorn[standard]==0.34.0
+python-multipart==0.0.20
+itsdangerous==2.2.0
+starlette==0.41.3
+pydantic==2.13.4
+pydantic-core==2.46.4
+typing-extensions==4.15.0
+click==8.4.2
+h11==0.16.0
+annotated-types==0.7.0
+anyio==4.14.1
+idna==3.18
+typing-inspection==0.4.2

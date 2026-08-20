@@ -1,0 +1,20 @@
+services:
+  lan-chat:
+    build: ./app
+    container_name: lan-chat
+    restart: unless-stopped
+    ports:
+      - "1111:1111"
+    command: ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "1111", "--proxy-headers", "--forwarded-allow-ips", "*"]
+    environment:
+      # 访问密码：首次进入聊天室时使用（留空则免密）
+      LANCHAT_ACCESS_PASSWORD: "change_this_access_password"
+      # 后台管理密码：访问 /admin 时使用（留空则免密）
+      LANCHAT_ADMIN_PASSWORD: "change_this_admin_password"
+      # 会话签名密钥（生产环境建议修改为随机字符串）
+      LANCHAT_SECRET_KEY: "change-this-secret-lan-chat-key"
+      LANCHAT_DATA_DIR: "/data"
+      LANCHAT_SITE_TITLE: "LAN Chat"
+      LANCHAT_WELCOME: "局域网聊天室"
+    volumes:
+      - ./data:/data

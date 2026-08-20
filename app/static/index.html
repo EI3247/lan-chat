@@ -1,0 +1,287 @@
+<!doctype html>
+<html lang="zh-CN" class="chat-html">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content" />
+  <title>LAN Chat</title>
+  <link rel="icon" href="/favicon.ico?v=1786778939" />
+  <link rel="stylesheet" href="/static/style.css?v=1786778939" />
+</head>
+<body class="chat-page">
+    <div id="login" class="login-screen hidden">
+    <div class="login-card glass">
+      <div class="brand-badge">💬</div>
+      <h1 id="loginTitle">LAN Chat</h1>
+      <form id="loginForm" class="stack">
+        <input id="password" type="password" placeholder="输入访问密码" autocomplete="current-password" />
+        <button type="submit" class="primary">进入聊天室</button>
+      </form>
+      <div id="loginError" class="error"></div>
+    </div>
+  </div>
+
+  <div id="app" class="app hidden">
+    <button id="searchFab" class="search-fab" type="button" title="搜索聊天和文件">🔍 <span>搜索</span></button>
+    <header class="topbar glass">
+      <div class="title-wrap">
+        <div class="logo">💬</div>
+        <div>
+          <h1 id="siteTitle">LAN Chat</h1>
+        </div>
+      </div>
+      <div class="top-actions">
+        <a href="/files" class="ghost">网盘</a>
+        <button id="profileBtn" class="ghost">我的</button>
+      </div>
+    </header>
+
+    <main id="messages" class="messages"></main>
+    <button id="chatScrollBottom" class="scroll-bottom-fab" type="button" title="回到最新" aria-label="回到最新">↓<span class="fab-dot"></span></button>
+
+    <footer class="composer glass">
+      <div id="attachPreview" class="attach-preview hidden"></div>
+      <div id="uploadProgress" class="upload-progress hidden"></div>
+      <textarea id="messageInput" rows="1" placeholder="输入消息…"></textarea>
+      <div class="composer-actions">
+        <label class="file-btn" title="上传文件（可多选）">📎<input id="fileInput" type="file" hidden multiple /></label>
+        <a href="/files" class="ghost bottom-nav">网盘</a>
+        <button id="profileBtnBottom" class="ghost bottom-nav" type="button">我的</button>
+        <button id="expandComposer" class="ghost" type="button">文本</button>
+        <button id="sendBtn" class="primary" type="button">发送</button>
+      </div>
+    </footer>
+  </div>
+
+  <dialog id="copyDialog" class="dialog">
+    <form method="dialog" class="dialog-card wide copy-card" onsubmit="event.preventDefault()">
+      <h2>复制文本</h2>
+      <p class="muted">如果没有自动进入剪贴板，请在下面文本框里全选/复制。</p>
+      <textarea id="copyTextArea" readonly></textarea>
+      <div class="dialog-actions">
+        <button value="cancel" class="ghost">关闭</button>
+        <button id="tryCopyText" type="button" class="ghost">尝试复制</button>
+        <button id="selectCopyText" type="button" class="primary">选中文本</button>
+      </div>
+    </form>
+  </dialog>
+  <dialog id="textFileDialog" class="dialog full-dialog">
+    <form method="dialog" class="dialog-card compose-card" onsubmit="event.preventDefault()">
+      <div class="compose-head"><h2 id="textFileTitle">文本文件</h2><span id="textFileMeta"></span></div>
+      <textarea id="textFileContent" readonly></textarea>
+      <div class="dialog-actions text-file-actions">
+        <button id="closeTextFile" type="button" class="ghost" data-text-view>关闭</button>
+        <button id="editTextFile" type="button" class="primary" data-text-view>编辑</button>
+        <button id="cancelTextFile" type="button" class="ghost hidden" data-text-edit>取消</button>
+        <button id="saveTextFile" type="button" class="primary hidden" data-text-edit>保存</button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog id="userInfoDialog" class="dialog">
+    <form method="dialog" class="dialog-card wide user-info-card" onsubmit="event.preventDefault()">
+      <div class="user-info-head">
+        <span id="infoAvatar" class="avatar big">🙂</span>
+        <div class="user-info-title"><h2 id="infoName">用户资料</h2><p id="infoSub"></p></div>
+      </div>
+      <div id="infoFields" class="user-fields"></div>
+      <div class="info-history-head"><h3>聊天记录</h3><span id="infoCount" class="info-count">0 条</span></div>
+      <div id="infoMessages" class="info-messages"></div>
+      <div class="dialog-actions">
+        <button type="button" id="p2pSendBtn" class="ghost" style="display:none">📡 直传文件</button>
+        <button value="cancel" class="ghost">关闭</button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog id="searchDialog" class="dialog">
+    <form method="dialog" class="dialog-card wide search-card" onsubmit="event.preventDefault()">
+      <div class="search-head">
+        <h2>搜索</h2>
+      </div>
+      <div class="search-tabs">
+        <button type="button" class="search-tab on" data-stab="kw">🔍 关键词</button>
+        <button type="button" class="search-tab" data-stab="time">📅 按时间</button>
+      </div>
+      <div class="search-pane" data-spane="kw">
+        <input id="searchInput" type="search" placeholder="输入关键词…（同时搜消息和文件名）" autocomplete="off" />
+        <div id="searchResults" class="search-results"><div class="empty-note">输入关键词开始搜索</div></div>
+      </div>
+      <div class="search-pane hidden" data-spane="time">
+        <div class="time-range-row">
+          <button type="button" class="time-field" id="timeStartBtn"><span class="time-field-label">开始</span><span class="time-field-val" id="timeStartVal">选择日期</span></button>
+          <span class="time-range-sep">→</span>
+          <button type="button" class="time-field" id="timeEndBtn"><span class="time-field-label">结束</span><span class="time-field-val" id="timeEndVal">选择日期</span></button>
+        </div>
+        <div class="time-quick">
+          <button type="button" data-quick="today">今天</button>
+          <button type="button" data-quick="yesterday">昨天</button>
+          <button type="button" data-quick="7d">近7天</button>
+          <button type="button" data-quick="30d">近30天</button>
+        </div>
+        <button type="button" class="primary time-go" id="timeGoBtn">查看这段记录</button>
+        <div id="timeResults" class="search-results"><div class="empty-note">选择起止日期，查看这段时间的聊天记录</div></div>
+      </div>
+      <div class="dialog-actions">
+        <button value="cancel" class="ghost">关闭</button>
+      </div>
+      <div id="calPop" class="cal-pop hidden">
+        <div class="cal-pop-inner">
+          <div class="cal-head">
+            <button type="button" class="cal-nav" id="calPrev">‹</button>
+            <span class="cal-title" id="calTitle">2026年 6月</span>
+            <button type="button" class="cal-nav" id="calNext">›</button>
+          </div>
+          <div class="cal-weekdays"><span>日</span><span>一</span><span>二</span><span>三</span><span>四</span><span>五</span><span>六</span></div>
+          <div class="cal-grid" id="calGrid"></div>
+          <div class="cal-foot">
+            <span class="cal-hint" id="calHint">点选开始日期</span>
+            <div class="cal-foot-btns"><button type="button" class="ghost" id="calClear">清除</button><button type="button" class="primary" id="calDone">确定</button></div>
+          </div>
+        </div>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog id="composeDialog" class="dialog full-dialog">
+    <form method="dialog" class="dialog-card compose-card" onsubmit="event.preventDefault()">
+      <div class="compose-head"><h2>文本编辑</h2><span>回车换行，点“同步到输入框”或“发送”</span></div>
+      <textarea id="composeText" placeholder="在这里输入长文本、代码、日志……"></textarea>
+      <div class="dialog-actions">
+        <button value="cancel" class="ghost">取消</button>
+        <button id="syncCompose" type="button" class="ghost">同步到输入框</button>
+        <button id="sendCompose" type="button" class="primary">发送</button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog id="profileDialog" class="dialog">
+    <form method="dialog" class="dialog-card profile-card" onsubmit="event.preventDefault()">
+      <div class="profile-scroll">
+      <h2>我的资料</h2>
+      <div class="profile-preview"><span id="profileAvatar" class="avatar big">🙂</span><span id="profileName">-</span></div>
+      <div class="mode-setting">
+        <div class="label">聊天模式</div>
+        <div id="modeSeg" class="mode-seg">
+          <button type="button" class="mode-opt" data-mode-opt="public">💬 群聊模式</button>
+          <button type="button" class="mode-opt" data-mode-opt="private">🔒 私人模式</button>
+        </div>
+        <p class="mode-tip muted">私人模式下发的消息和文件仅你自己可见（聊天页只看自己的私人内容、网盘页只看自己的私人文件）；切换不影响已发送的消息。</p>
+      </div>
+      <label>昵称<input id="nicknameInput" maxlength="60" /></label>
+      <div id="nicknameError" class="field-error" hidden></div>
+      <div>
+        <div class="label">预设头像</div>
+        <div id="presetAvatars" class="avatar-grid"></div>
+      </div>
+      <label>上传头像<input id="avatarUpload" type="file" accept="image/*" /></label>
+      <div class="identity-box">
+        <div class="label">身份码（换设备/清缓存不丢身份的关键）</div>
+        <div class="identity-row"><code id="idCodeView">-</code><span id="idSecretState" class="id-state"></span></div>
+        <p class="mode-tip muted">身份码默认随机生成，可改成自己好记的（支持中文）。设个密码后，在其他设备用「身份码+密码」就能找回这个身份（可多设备共用）。</p>
+        <div class="identity-actions">
+          <button id="manageIdentityBtn" type="button" class="ghost">设置/修改身份码·密码</button>
+          <button id="recoverIdentityBtn" type="button" class="ghost">恢复旧身份</button>
+        </div>
+      </div>
+      </div>
+      <div class="dialog-actions">
+        <button value="cancel" class="ghost">关闭</button>
+        <button id="saveProfile" value="default" class="primary">保存</button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog id="identityDialog" class="dialog">
+    <form method="dialog" class="dialog-card" onsubmit="event.preventDefault()">
+      <h2 id="identityTitle">设置身份码·密码</h2>
+      <p class="mode-tip muted" id="identityHint"></p>
+      <label>身份码（可中文，留空=不改）<input id="idCodeInput" maxlength="60" placeholder="例：我的私人空间" /></label>
+      <label id="oldSecretWrap" class="hidden">原密码<input id="oldSecretInput" type="password" autocomplete="current-password" placeholder="修改需验证原密码" /></label>
+      <label>新密码<input id="newSecretInput" type="password" autocomplete="new-password" placeholder="至少 4 位；已有密码时留空=不改" /></label>
+      <div id="identityError" class="error"></div>
+      <div class="dialog-actions">
+        <button value="cancel" class="ghost">取消</button>
+        <button id="saveIdentityBtn" type="button" class="primary">保存</button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog id="recoverDialog" class="dialog">
+    <form method="dialog" class="dialog-card" onsubmit="event.preventDefault()">
+      <h2>恢复旧身份</h2>
+      <p class="mode-tip muted">输入你在另一台设备设过的身份码和密码，恢复后当前设备将使用那个身份（私人消息/网盘会回来，可多设备共用）。当前设备原来的临时身份会被替换。</p>
+      <label>身份码<input id="recoverCodeInput" maxlength="60" placeholder="例：LC-7K2P 或你自定义的" /></label>
+      <label>密码（该身份未设密码则留空）<input id="recoverSecretInput" type="password" autocomplete="current-password" /></label>
+      <div id="recoverError" class="error"></div>
+      <div class="dialog-actions">
+        <button value="cancel" class="ghost">取消</button>
+        <button id="doRecoverBtn" type="button" class="primary">恢复</button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog id="avatarCropDialog" class="dialog">
+    <div class="dialog-card crop-card">
+      <h2>裁切头像</h2>
+      <div class="crop-hint">拖动移动，滑动滑块缩放；下方显示清晰度，⚠️“清晰”时效果最佳，过度放大会发虚
+      <div id="cropStage" class="crop-stage">
+        <canvas id="cropCanvas"></canvas>
+        <div class="crop-mask"></div>
+      </div>
+      <input id="cropZoom" class="crop-zoom" type="range" min="1" max="3" step="0.01" value="1" />
+      <div id="cropMeta" class="crop-meta"><span id="cropZoomVal">100%</span><span id="cropQuality" class="crop-q">—</span></div>
+      <div class="dialog-actions">
+        <button id="cropCancel" class="ghost" type="button">取消</button>
+        <button id="cropConfirm" class="primary" type="button">确定</button>
+      </div>
+    </div>
+  </dialog>
+
+  <dialog id="editDialog" class="dialog">
+    <form method="dialog" class="dialog-card wide" onsubmit="event.preventDefault()">
+      <h2>编辑消息</h2>
+      <textarea id="editText"></textarea>
+      <div class="dialog-actions">
+        <button value="cancel" class="ghost">取消</button>
+        <button id="saveEdit" value="default" class="primary">保存</button>
+      </div>
+    </form>
+  </dialog>
+
+  <div id="toast" class="toast hidden"></div>
+
+  <!-- P2P 接收确认弹窗 -->
+  <dialog id="p2pReceiveDialog" class="dialog">
+    <form method="dialog" class="dialog-card wide" onsubmit="event.preventDefault()">
+      <h2>📡 收到直传请求</h2>
+      <p style="margin:12px 0">对方想给你直传文件：</p>
+      <div style="background:var(--bg-card,rgba(255,255,255,.6));border-radius:12px;padding:14px;margin:8px 0">
+        <div style="font-weight:600;font-size:1.1em" id="p2pReceiveName">文件名</div>
+        <div style="color:var(--muted,#69758a);margin-top:4px" id="p2pReceiveSize">0 B</div>
+      </div>
+      <p style="color:var(--muted,#69758a);font-size:.85em;margin:8px 0">P2P 直传不经服务器存储，对方在线时传输。</p>
+      <div class="dialog-actions">
+        <button type="button" value="cancel" class="ghost" onclick="p2pReject()">拒绝</button>
+        <button type="button" value="default" class="primary" onclick="p2pAccept()">接受</button>
+      </div>
+    </form>
+  </dialog>
+
+  <!-- P2P 传输进度弹窗 -->
+  <dialog id="p2pTransferDialog" class="dialog">
+    <form method="dialog" class="dialog-card wide" onsubmit="event.preventDefault()">
+      <h2 id="p2pTransferTitle">传输中…</h2>
+      <p id="p2pTransferSub" style="color:var(--muted,#69758a);margin:8px 0;font-size:.9em"></p>
+      <div style="background:rgba(0,0,0,.1);border-radius:10px;height:24px;overflow:hidden;margin:12px 0">
+        <div id="p2pProgressBar" style="background:linear-gradient(90deg,#6366f1,#8b5cf6);height:100%;width:0%;border-radius:10px;transition:width .2s"></div>
+      </div>
+      <div id="p2pProgressText" style="text-align:center;font-size:.9em;color:var(--muted,#69758a)">0%</div>
+      <div class="dialog-actions">
+        <button type="button" id="p2pTransferCancel" value="cancel" class="ghost" onclick="p2pCancel()">取消传输</button>
+      </div>
+    </form>
+  </dialog>
+
+  <script src="/static/app.js?v=1786778939"></script>
+</body>
+</html>
