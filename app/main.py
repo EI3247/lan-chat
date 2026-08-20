@@ -749,28 +749,6 @@ async def broadcast_msg(msg: dict, kind: str = 'message'):
     else:
         await hub.broadcast({'type':kind,'message':msg})
 
-@app.get('/i', response_class=HTMLResponse)
-def info_page(request: Request):
-    css = '''
-    body{margin:0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Microsoft YaHei',sans-serif;background:#eef3ff;color:#132033;line-height:1.6}
-    .wrap{max-width:920px;margin:0 auto;padding:24px}.card{background:rgba(255,255,255,.88);border:1px solid rgba(102,119,153,.22);border-radius:22px;padding:22px;box-shadow:0 18px 60px rgba(43,68,120,.16)}
-    h1{margin:0 0 8px}.muted{color:#69758a}.grid{display:grid;grid-template-columns:170px 1fr;gap:8px 14px}.k{font-weight:700;color:#334155}code,pre{background:#0f172a;color:#e5e7eb;border-radius:12px}code{padding:2px 6px}pre{padding:14px;overflow:auto;white-space:pre-wrap}ul{padding-left:22px}a{color:#244fc9}
-    @media(max-width:720px){.wrap{padding:12px}.grid{grid-template-columns:1fr}.card{padding:16px}}
-    '''
-    rows = {
-        '版本': APP_VERSION,
-        '更新时间': APP_UPDATED_AT,
-        '服务端口': '宿主机 1111 -> 容器 1111 (或 8000)',
-        '容器数据路径': DATA_DIR,
-        '当前访问IP': client_ip(request),
-    }
-    rows_html = ''.join(f'<div class="k">{html.escape(k)}</div><div>{html.escape(v)}</div>' for k,v in rows.items())
-    changes = ''.join(f'<li>{html.escape(x)}</li>' for x in APP_CHANGELOG)
-    routes = ['/','/files','/admin','/i','/api/config','/api/messages','/api/search','/api/upload','/api/files','/ws']
-    routes_html = ''.join(f'<code>{html.escape(x)}</code> ' for x in routes)
-    hint = '本项目为开源轻量局域网聊天与文件传输系统，支持文字、图片音视频、WebRTC P2P 直传与 Quick Drop 快捷投递。'
-    return '<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>LAN Chat Info {version}</title><style>{css}</style></head><body><main class="wrap"><section class="card"><h1>LAN Chat 信息页</h1><p class="muted">项目信息与状态概览。</p><div class="grid">{rows}</div><h2>最近变更</h2><ul>{changes}</ul><h2>主要入口</h2><p>{routes}</p><h2>说明</h2><pre>{hint}</pre></section></main></body></html>'.format(version=html.escape(APP_VERSION), css=css, rows=rows_html, changes=changes, routes=routes_html, hint=html.escape(hint))
-
 @app.get('/', response_class=HTMLResponse)
 def index():
     page=(Path(__file__).parent/'static/index.html').read_text(encoding='utf-8')
