@@ -7,7 +7,9 @@
 > **License**: [MIT License](LICENSE)
 
 A lightweight, out-of-the-box local area network (LAN) chatroom + private file cloud + WebRTC P2P high-speed file transfer system.  
-Built with **FastAPI + SQLite + Vanilla JavaScript**. Runs seamlessly as a single Docker container, ideal for home NAS, small teams, research labs, and office environments.
+Built with **FastAPI + SQLite + Vanilla JavaScript**. Runs seamlessly as a single Docker container, ideal for home NAS, small teams, research labs, and office environments, enabling **fast multi-device cross-platform file transfer** (phones, PCs, tablets).
+
+> 💡 **Tip**: Highly recommended to configure router DNS rewrites (via AdGuard Home, OpenWrt, or dnsmasq) to map your LAN IP to a short custom domain (e.g. `http://chat.lan:1111` or `http://l.cn:1111`) for effortless browser access without typing IP addresses.
 
 ---
 

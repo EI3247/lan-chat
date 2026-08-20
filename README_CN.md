@@ -7,7 +7,9 @@
 > **开源协议**: [MIT License](LICENSE)
 
 轻量级、开箱即用的局域网聊天室 + 私人网盘 + WebRTC P2P 大文件直传系统。  
-采用 **FastAPI + SQLite + 原生 JavaScript** 构建，单个 Docker 容器即可快速部署，特别适合家庭 NAS、小团队、实验室及小型办公场景。
+采用 **FastAPI + SQLite + 原生 JavaScript** 构建，单个 Docker 容器即可快速部署，特别适合家庭 NAS、小团队、实验室及小型办公场景，支持手机、电脑、平板等**多端跨设备极速互传**。
+
+> 💡 **使用建议**：建议配合路由器 DNS 重写（如 AdGuard Home / OpenWrt / dnsmasq）将局域网 IP 重写为简短自定义域名（如 `http://chat.lan:1111` 或 `http://l.cn:1111`），局域网内各设备打开浏览器无需记 IP，访问更便捷。
 
 ---
 
