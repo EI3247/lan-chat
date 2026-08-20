@@ -61,20 +61,18 @@ Built with **FastAPI + SQLite + Vanilla JavaScript**. Runs seamlessly as a singl
 
 ---
 
-## 🚀 Quick Start
+## 🚀 Deployment Methods
 
-### 1. Using Docker Compose (Recommended)
+LAN Chat supports both **Docker Container Deployment (Recommended)** and **Bare-Metal Native Execution (No Docker)**.
 
-Clone the repository and start:
+### Method 1: Docker Compose (Recommended)
 
 ```bash
 docker compose up -d
 ```
-
 The service will be accessible at `http://<your-lan-ip>:1111`.
 
-### 2. Configuration (`docker-compose.yml`)
-
+#### `docker-compose.yml` Configuration
 ```yaml
 services:
   lan-chat:
@@ -97,6 +95,23 @@ services:
     volumes:
       - ./data:/data
 ```
+
+---
+
+### Method 2: Bare-Metal Host Execution (No Docker Required)
+
+Ideal for lightweight Linux/macOS/Windows machines, Raspberry Pi, or embedded devices without Docker:
+
+#### 1. Linux / macOS
+```bash
+chmod +x start.sh
+./start.sh
+```
+
+#### 2. Windows
+Double-click **`run.bat`** in the repository root.
+
+> 💡 **Bare-Metal Advantages**: Transparently logs real local IP addresses (e.g. `192.168.3.x`) for IP auditing. Optional `ffmpeg` installation for video thumbnail previews.
 
 ---
 

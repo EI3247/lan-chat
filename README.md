@@ -60,20 +60,18 @@
 
 ---
 
-## 🚀 快速启动
+## 🚀 快速启动与部署方式
 
-### 1. 使用 Docker Compose（推荐）
+本项目提供两种部署方式：**Docker 容器部署（推荐）** 与 **宿主机原生直接运行（免 Docker）**。
 
-克隆仓库后直接启动：
+### 方式一：使用 Docker Compose（推荐，容器隔离）
 
 ```bash
 docker compose up -d
 ```
-
 默认配置下服务将运行在 `http://你的局域网IP:1111`。
 
-### 2. 配置文件说明 (`docker-compose.yml`)
-
+#### `docker-compose.yml` 配置说明
 ```yaml
 services:
   lan-chat:
@@ -96,6 +94,24 @@ services:
     volumes:
       - ./data:/data
 ```
+
+---
+
+### 方式二：宿主机原生运行（免 Docker，支持真实局域网 IP 审计）
+
+适合没有 Docker 的 Linux、macOS、Windows 主机、树莓派或老旧小主机：
+
+#### 1. Linux / macOS
+```bash
+# 赋予执行权限并直接启动（脚本会自动创建 Python 虚拟环境并安装依赖）
+chmod +x start.sh
+./start.sh
+```
+
+#### 2. Windows
+直接双击运行仓库根目录下的 **`run.bat`** 即可。
+
+> 💡 **宿主机运行优势**：可直接透传真实局域网 IP（如 `192.168.3.x`），便于后台审计与管理。可选安装 `ffmpeg` 以支持视频缩略图生成。
 
 ---
 

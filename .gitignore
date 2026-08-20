@@ -3,6 +3,11 @@ __pycache__/
 *.py[cod]
 *$py.class
 
+# Python Virtual Environment
+venv/
+.venv/
+env/
+
 # Data & Database (用户实际数据目录)
 data/
 *.db
