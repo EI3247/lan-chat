@@ -9,19 +9,23 @@ Built with **FastAPI + SQLite + Vanilla JavaScript**. Runs seamlessly as a singl
 
 ## ✨ Key Features & Highlights
 
-### 1. 💬 Instant Messaging & Hidden Admin Entry
+### 1. 🔑 Seamless Account Inheritance via Device / Browser Fingerprinting
+- **No Complex Registration**: Users simply enter a nickname to start chatting.
+- **Cross-Browser & Multi-Device Account Inheritance**: Powered by browser fingerprinting technology. When switching to a different browser or re-entering the platform on the same device/environment, users can **seamlessly inherit and bind their existing account, avatar, and message history** without remembering passwords or tedious login workflows.
+
+### 2. 💬 Instant Messaging & Hidden Admin Entry
 - **Real-Time Group & Private Chat**: High-concurrency WebSocket message delivery for text, emojis, rich media (images/video/audio), and files.
 - **Hidden Admin Command Entry**: No exposed admin buttons on the login/chat interface. Simply type your **Super Admin Password into the chat input box and send it**, and the system will automatically authenticate and redirect you to the `/admin` control dashboard.
 - **Message Management**: Support for editing, real-time withdraw (withdraw/restore), copy, and setting messages to Private/Public.
 - **User Cards & Online Detection**: Click on user avatars to view their card profile, recent messages, and check online status in real-time.
 
-### 2. ⚡ WebRTC P2P Direct File Transfer
+### 3. ⚡ WebRTC P2P Direct File Transfer
 - **Direct P2P Streaming**: Device-to-device direct transfer within local networks. Does **not consume server disk or network bandwidth**.
 - **Multi-File Queue**: Select multiple files in one batch; the receiver confirms once, and files are streamed sequentially through a single WebRTC DataChannel.
 - **Large File Support**: Transfer files up to 5GB with 64KB chunking and flow control.
 - **Full Transfer Controls**: Cancel transfer or waiting at any stage, with realtime progress updates on both sender and receiver sides.
 
-### 3. 📂 Dual-Mode File Drive & Quick Drop
+### 4. 📂 Dual-Mode File Drive & Quick Drop
 - **Private & Public File Drive (`/files`)**:
   - **Public Mode**: Files shared in group chat are accessible to all users.
   - **Private Mode (Personal Cloud)**: Switch to private scope to view and manage only your own private files.
@@ -35,11 +39,11 @@ Built with **FastAPI + SQLite + Vanilla JavaScript**. Runs seamlessly as a singl
   - On-the-fly video and image thumbnail previews.
   - Plain text file online view and editing.
 
-### 4. 📱 Full-Platform & Lightweight WebView Friendly
+### 5. 📱 Full-Platform & Lightweight WebView Friendly
 - Deeply adapted for PC, tablet, and mobile browsers.
 - **Broad Compatibility**: Built-in 3-layer fallback for low-version Android WebViews that lack native `<dialog>` or modern ES features (such as X-Browser, in-app WebViews).
 
-### 5. 🛡️ Security & Background Management (`/admin`)
+### 6. 🛡️ Security & Background Management (`/admin`)
 - **Dual-Layer Passwords**: 
   - *Access Password*: Password to enter the chatroom (can be left empty for public access).
   - *Super Password*: Password to enter the `/admin` control panel.
@@ -103,7 +107,7 @@ data/
 
 ---
 
-## 🛠️ Tech Stack
+## 🛠️ 技术栈 / Tech Stack
 
 - **Backend**: Python 3.11, FastAPI, Uvicorn, SQLite3, ffmpeg
 - **Frontend**: Vanilla HTML5 / CSS3 / JavaScript (Zero build step, lightweight & fast)
