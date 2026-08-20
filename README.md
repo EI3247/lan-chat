@@ -9,9 +9,12 @@ Built with **FastAPI + SQLite + Vanilla JavaScript**. Runs seamlessly as a singl
 
 ## ✨ Key Features & Highlights
 
-### 1. 🔑 Seamless Account Inheritance via Device / Browser Fingerprinting
-- **No Complex Registration**: Users simply enter a nickname to start chatting.
-- **Cross-Browser & Multi-Device Account Inheritance**: Powered by browser fingerprinting technology. When switching to a different browser or re-entering the platform on the same device/environment, users can **seamlessly inherit and bind their existing account, avatar, and message history** without remembering passwords or tedious login workflows.
+### 1. 🔑 Custom Identity Code (Account Recovery & Multi-Device Sync)
+- **Zero Friction Onboarding**: Users simply choose a nickname and avatar to start chatting immediately.
+- **Unique Identity Code (`id_code`)**: Every user is automatically assigned a unique 6-character recovery code, which can be customized at any time (supports custom text and Chinese characters).
+- **Optional Personal Password**: Users can set an optional password for their identity code for enhanced security.
+- **Cross-Browser & Multi-Device Account Inheritance**: When switching devices, changing browsers, or clearing browser cache, simply enter your **Identity Code (+ Password if set)** to instantly recover and inherit your account identity, personal avatar, private messages, and personal cloud files.
+- **Seamless Account Merging**: Any messages or files sent on the temporary guest session are automatically merged into the target account upon recovery.
 
 ### 2. 💬 Instant Messaging & Hidden Admin Entry
 - **Real-Time Group & Private Chat**: High-concurrency WebSocket message delivery for text, emojis, rich media (images/video/audio), and files.
