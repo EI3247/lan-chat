@@ -1918,3 +1918,13 @@ body.private-mode .glass{
 
 /* 设置身份码弹窗：警示提示语颜色 */
 .identity-warn{color:#d97706!important;font-weight:600}
+
+
+/* 「我的」弹窗：退出登录按钮（红色警示） */
+.logout-btn{
+  color:#dc2626!important;
+  border-color:rgba(220,38,38,.35)!important;
+}
+.logout-btn:active{
+  background:rgba(220,38,38,.1)!important;
+}

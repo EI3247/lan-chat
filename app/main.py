@@ -39,8 +39,8 @@ DB_PATH = DATA_DIR / 'chat.db'
 SITE_TITLE = os.getenv('LANCHAT_SITE_TITLE', 'LAN Chat')
 WELCOME = os.getenv('LANCHAT_WELCOME', '局域网聊天室')
 FILES_TITLE = os.getenv('LANCHAT_FILES_TITLE', '文件目录')
-APP_VERSION = "202608230445"
-APP_UPDATED_AT = "2026-08-23 04:45"
+APP_VERSION = "202608230510"
+APP_UPDATED_AT = "2026-08-23 05:10"
 APP_CHANGELOG = [
     '聊天气泡及消息时间戳格式化去除秒针，仅保留年/月/日 时:分。',
     '网盘页列表底部渐隐 mask 减弱（最低不透明度 0.10→0.35），滑到底时最后一张卡片文字不再过暗。',
@@ -916,7 +916,13 @@ async def save_identity(request: Request):
         else:
             secret_hash = r.get('secret_hash')
     con=db(); con.execute('UPDATE users SET id_code=?, secret_hash=?, updated_at=? WHERE id=?', (new_code, secret_hash, now_iso(), u['id'])); con.commit(); con.close()
-    return {'ok': True, 'id_code': new_code, 'has_secret': bool(secret_hash)}
+    out = {'ok': True, 'id_code': new_code, 'has_secret': bool(secret_hash)}
+    if code_changed:
+        # 身份码已修改：所有设备/浏览器缓存的旧身份立即失效，
+        # 需重新输入访问密码重新进入（=全新身份），再用「身份码+密码」恢复旧身份。
+        bump_version('access_version')
+        out['reauthed'] = True
+    return out
 
 _recover_hits: dict[str, list[float]] = {}
 def _recover_rate_ok(ip: str) -> bool:

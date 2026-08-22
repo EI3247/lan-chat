@@ -4,8 +4,8 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content" />
   <title>LAN Chat</title>
-  <link rel="icon" href="/favicon.ico?v=202608230445" />
-  <link rel="stylesheet" href="/static/style.css?v=202608230445" />
+  <link rel="icon" href="/favicon.ico?v=202608230510" />
+  <link rel="stylesheet" href="/static/style.css?v=202608230510" />
 </head>
 <body class="chat-page">
     <div id="login" class="login-screen hidden">
@@ -177,6 +177,13 @@
           <button id="recoverIdentityBtn" type="button" class="ghost">恢复旧身份</button>
         </div>
       </div>
+      <div class="identity-box">
+        <div class="label">退出登录</div>
+        <p class="mode-tip muted">退出后需重新输入访问密码并需要身份码</p>
+        <div class="identity-actions">
+          <button id="logoutBtn" type="button" class="ghost logout-btn">🚪 退出当前设备</button>
+        </div>
+      </div>
       <div class="author-card">
         <div class="author-ava">EI</div>
         <div class="author-txt">
@@ -287,6 +294,6 @@
     </form>
   </dialog>
 
-  <script src="/static/app.js?v=202608230445"></script>
+  <script src="/static/app.js?v=202608230510"></script>
 </body>
 </html>
