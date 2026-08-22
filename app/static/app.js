@@ -23,7 +23,8 @@ function bindStableEditorScroll(root=document){ root.querySelectorAll?.('#textFi
 
 function avatar(u){ if(!u) return '<span class="avatar">?</span>'; if(u.avatar_type==='upload'&&u.avatar_url) return `<span class="avatar"><img src="${u.avatar_url}"></span>`; return `<span class="avatar">${escapeHtml(u.avatar_value||'🙂')}</span>` }
 function escapeHtml(s){return String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]))}
-function fmt(ts){try{return new Date(ts).toLocaleString()}catch{return ts}}
+function pad2(n){return n<10?"0"+n:""+n}
+function fmt(ts){try{let d=new Date(ts);if(isNaN(d.getTime()))return ts;return d.getFullYear()+"/"+(d.getMonth()+1)+"/"+d.getDate()+" "+pad2(d.getHours())+":"+pad2(d.getMinutes());}catch(e){return ts}}
 function size(n){if(n==null)return''; const u=['B','KB','MB','GB','TB']; let i=0; while(n>=1024&&i<u.length-1){n/=1024;i++} return `${n.toFixed(i?1:0)} ${u[i]}`}
 function linkify(text){
   const parts=[]; const re=/(https?:\/\/[^\s<]+|www\.[^\s<]+)/ig; let last=0,m;

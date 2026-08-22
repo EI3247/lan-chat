@@ -39,9 +39,10 @@ DB_PATH = DATA_DIR / 'chat.db'
 SITE_TITLE = os.getenv('LANCHAT_SITE_TITLE', 'LAN Chat')
 WELCOME = os.getenv('LANCHAT_WELCOME', '局域网聊天室')
 FILES_TITLE = os.getenv('LANCHAT_FILES_TITLE', '文件目录')
-APP_VERSION = "202608221940"
-APP_UPDATED_AT = "202608221940"
+APP_VERSION = "202608222010"
+APP_UPDATED_AT = "202608222010"
 APP_CHANGELOG = [
+    '聊天气泡及消息时间戳格式化去除秒针，仅保留年/月/日 时:分。',
     '网盘页列表底部渐隐 mask 减弱（最低不透明度 0.10→0.35），滑到底时最后一张卡片文字不再过暗。',
     '后台头部标题「超级管理后台」改为「管理后台」，副标题改为路径提示文字 /admin。',
     '修复用户资料弹窗底部按钮被挤出视口不可见的问题（按钮行固定卡片底部）；聊天记录卡片去掉描边线框改纯底色，观感更干净。',
