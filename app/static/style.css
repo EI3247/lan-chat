@@ -1913,3 +1913,8 @@ body.private-mode .glass{
   border-color:rgba(124,58,237,.10)!important;
 }
 
+
+
+
+/* 设置身份码弹窗：警示提示语颜色 */
+.identity-warn{color:#d97706!important;font-weight:600}

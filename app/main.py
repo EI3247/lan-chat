@@ -39,8 +39,8 @@ DB_PATH = DATA_DIR / 'chat.db'
 SITE_TITLE = os.getenv('LANCHAT_SITE_TITLE', 'LAN Chat')
 WELCOME = os.getenv('LANCHAT_WELCOME', '局域网聊天室')
 FILES_TITLE = os.getenv('LANCHAT_FILES_TITLE', '文件目录')
-APP_VERSION = "202608230340"
-APP_UPDATED_AT = "2026-08-23 03:40"
+APP_VERSION = "202608230440"
+APP_UPDATED_AT = "2026-08-23 04:40"
 APP_CHANGELOG = [
     '聊天气泡及消息时间戳格式化去除秒针，仅保留年/月/日 时:分。',
     '网盘页列表底部渐隐 mask 减弱（最低不透明度 0.10→0.35），滑到底时最后一张卡片文字不再过暗。',
@@ -883,8 +883,10 @@ def get_identity(request: Request):
 
 @app.post('/api/identity/save')
 async def save_identity(request: Request):
-    # 设置/修改身份码与个人密码。身份码本身即凭证，密码可空。
-    # 已有密码：改身份码/密码都需验原密码。无密码：随便改。
+    # 设置/修改身份码与个人密码。
+    # 强制安全策略：凡修改/设置身份码，必须同时设置新密码（至少4位）——
+    # 避免出现「无密码+可自定义身份码」被他人凭码直接恢复的空档。
+    # 仅改密码（身份码不变）：已有密码需验原密码，新密码可留空=不改。
     u = require_user(request); r = dict(u); data = await request.json()
     new_code = str(data.get('id_code') or '').strip()[:60]
     new_secret = str(data.get('new_secret') or '')
@@ -895,13 +897,24 @@ async def save_identity(request: Request):
             raise HTTPException(403, '原密码不正确')
     if not new_code:
         raise HTTPException(400, '身份码不能为空')
-    if new_code != (r.get('id_code') or ''):
+    code_changed = new_code != (r.get('id_code') or '')
+    if code_changed:
         con=db(); dup=con.execute('SELECT id FROM users WHERE id_code=? AND id<>?', (new_code, u['id'])).fetchone(); con.close()
         if dup: raise HTTPException(409, '该身份码已被占用，请换一个')
-    # 密码可空：空 new_secret + has_secret → 不改密码；空 new_secret + 无密码 → 保持无密码。
-    if new_secret and len(new_secret) < 4:
-        raise HTTPException(400, '密码至少 4 位')
-    secret_hash = hash_password(new_secret) if new_secret else r.get('secret_hash')
+        # 改身份码 => 强制设置新密码（堵死“免密凭码继承他人身份”路径）
+        if not new_secret:
+            raise HTTPException(400, '修改身份码必须同时设置新密码（至少4位）')
+        if len(new_secret) < 4:
+            raise HTTPException(400, '密码至少 4 位')
+        secret_hash = hash_password(new_secret)
+    else:
+        # 身份码不变：可选改密码
+        if new_secret:
+            if len(new_secret) < 4:
+                raise HTTPException(400, '密码至少 4 位')
+            secret_hash = hash_password(new_secret)
+        else:
+            secret_hash = r.get('secret_hash')
     con=db(); con.execute('UPDATE users SET id_code=?, secret_hash=?, updated_at=? WHERE id=?', (new_code, secret_hash, now_iso(), u['id'])); con.commit(); con.close()
     return {'ok': True, 'id_code': new_code, 'has_secret': bool(secret_hash)}
 
@@ -929,10 +942,19 @@ async def recover_identity(request: Request):
     if not target:
         raise HTTPException(404, '身份码不存在')
     tr=dict(target)
-    # 目标有密码才验证；空密码身份凭码即可恢复。
-    if tr.get('secret_hash'):
-        if not verify_password(secret, tr.get('secret_hash')):
-            raise HTTPException(403, '密码不正确')
+    # 安全策略：目标必须已设置密码才允许恢复。
+    # 无密码身份禁止恢复——否则任何人凭“已占用”提示得到的身份码即可无密码继承他人身份。
+    # 无密码用户需先在原设备设置密码（设置/改身份码强制设密码），再在别处恢复。
+    # 安全策略（按身份码类型区分）：
+    # - 随机6位身份码：码即凭证且不可猜测，无密码也可恢复（保持原便利）。
+    # - 自定义身份码：可能被他人知道/猜到，若未设密码则禁止恢复——
+    #   否则任何人凭“已被占用”提示得到的码即可无密码继承他人身份。
+    if not tr.get('secret_hash'):
+        code = tr.get('id_code') or ''
+        if not re.fullmatch(r'[23456789ABCDEFGHJKLMNPQRSTUVWXYZ]{6}', code):
+            raise HTTPException(403, '该身份使用自定义身份码且未设置密码，无法直接恢复。请先在原设备设置密码后再恢复')
+    elif not verify_password(secret, tr.get('secret_hash')):
+        raise HTTPException(403, '密码不正确')
     if tr['id'] == cur['id']:
         raise HTTPException(400, '已是当前身份，无需恢复')
     # 合并：当前 uid 的消息/文件挂到目标 uid，然后删除当前 uid。
