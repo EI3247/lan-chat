@@ -39,8 +39,8 @@ DB_PATH = DATA_DIR / 'chat.db'
 SITE_TITLE = os.getenv('LANCHAT_SITE_TITLE', 'LAN Chat')
 WELCOME = os.getenv('LANCHAT_WELCOME', '局域网聊天室')
 FILES_TITLE = os.getenv('LANCHAT_FILES_TITLE', '文件目录')
-APP_VERSION = "202608230440"
-APP_UPDATED_AT = "2026-08-23 04:40"
+APP_VERSION = "202608230445"
+APP_UPDATED_AT = "2026-08-23 04:45"
 APP_CHANGELOG = [
     '聊天气泡及消息时间戳格式化去除秒针，仅保留年/月/日 时:分。',
     '网盘页列表底部渐隐 mask 减弱（最低不透明度 0.10→0.35），滑到底时最后一张卡片文字不再过暗。',

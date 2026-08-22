@@ -4,8 +4,8 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content" />
   <title>LAN Chat</title>
-  <link rel="icon" href="/favicon.ico?v=202608230440" />
-  <link rel="stylesheet" href="/static/style.css?v=202608230440" />
+  <link rel="icon" href="/favicon.ico?v=202608230445" />
+  <link rel="stylesheet" href="/static/style.css?v=202608230445" />
 </head>
 <body class="chat-page">
     <div id="login" class="login-screen hidden">
@@ -169,9 +169,9 @@
       </div>
       <label>上传头像<input id="avatarUpload" type="file" accept="image/*" /></label>
       <div class="identity-box">
-        <div class="label">身份码（换设备/清缓存不丢身份的关键）</div>
+        <div class="label">身份码（换设备/清缓存不丢身份）</div>
         <div class="identity-row"><code id="idCodeView">-</code><span id="idSecretState" class="id-state"></span></div>
-        <p class="mode-tip muted">身份码默认随机生成，可改成自己好记的（支持中文）。设个密码后，在其他设备用「身份码+密码」就能找回这个身份（可多设备共用）。</p>
+        <p class="mode-tip muted">身份码默认随机生成，可自定义（支持中文）。设置密码后，在其他设备用「身份码+密码」就能恢复成这个身份（可多设备共用）。</p>
         <div class="identity-actions">
           <button id="manageIdentityBtn" type="button" class="ghost">设置/修改身份码·密码</button>
           <button id="recoverIdentityBtn" type="button" class="ghost">恢复旧身份</button>
@@ -287,6 +287,6 @@
     </form>
   </dialog>
 
-  <script src="/static/app.js?v=202608230440"></script>
+  <script src="/static/app.js?v=202608230445"></script>
 </body>
 </html>
