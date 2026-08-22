@@ -39,8 +39,8 @@ DB_PATH = DATA_DIR / 'chat.db'
 SITE_TITLE = os.getenv('LANCHAT_SITE_TITLE', 'LAN Chat')
 WELCOME = os.getenv('LANCHAT_WELCOME', '局域网聊天室')
 FILES_TITLE = os.getenv('LANCHAT_FILES_TITLE', '文件目录')
-APP_VERSION = "202608222010"
-APP_UPDATED_AT = "202608222010"
+APP_VERSION = "202608230325"
+APP_UPDATED_AT = "2026-08-23 03:25"
 APP_CHANGELOG = [
     '聊天气泡及消息时间戳格式化去除秒针，仅保留年/月/日 时:分。',
     '网盘页列表底部渐隐 mask 减弱（最低不透明度 0.10→0.35），滑到底时最后一张卡片文字不再过暗。',
@@ -1643,13 +1643,25 @@ def admin_delete_user(uid: str, request: Request):
     return {'ok': True}
 
 @app.get('/api/admin/messages')
-def admin_messages(request: Request, q: str='', include_deleted: int = 0, page: int = 1, per_page: int = 30):
-    require_admin(request); con=db(); sql='SELECT * FROM messages WHERE 1=1'; args=[]
-    if not include_deleted: sql += ' AND deleted=0'
-    if q: sql+=' AND content LIKE ?'; args.append(f'%{q}%')
+def admin_messages(request: Request, q: str='', type: str='', include_deleted: int = 0, page: int = 1, per_page: int = 30):
+    require_admin(request); con=db()
+    # JOIN files 以便按文件名搜索
+    sql='SELECT m.* FROM messages m LEFT JOIN files f ON m.file_id=f.id WHERE 1=1'; args=[]
+    if not include_deleted: sql += ' AND m.deleted=0'
+    if q:
+        sql += ' AND (m.content LIKE ? OR f.original_name LIKE ? OR f.public_name LIKE ?)'
+        args += [f'%{q}%']*3
+    if type == 'withdrawn':
+        sql += ' AND m.withdrawn=1'
+    elif type == 'private':
+        sql += ' AND m.private=1'
+    elif type == 'file':
+        sql += ' AND m.file_id IS NOT NULL AND m.file_id != ""'
+    elif type == 'normal':
+        sql += ' AND m.withdrawn=0 AND m.deleted=0'
     total=con.execute(f'SELECT COUNT(*) FROM ({sql})',args).fetchone()[0]
     page=max(1,page); per_page=max(1,min(per_page,200)); offset=(page-1)*per_page
-    sql+=' ORDER BY created_at DESC LIMIT ? OFFSET ?'; args.extend([per_page,offset])
+    sql+=' ORDER BY m.created_at DESC LIMIT ? OFFSET ?'; args.extend([per_page,offset])
     rows=con.execute(sql,args).fetchall(); con.close()
     return {'messages':[message_public(r) for r in rows], 'total': total, 'page': page, 'per_page': per_page}
 

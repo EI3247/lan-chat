@@ -2,47 +2,241 @@ const $=s=>document.querySelector(s);const fileStore=new Map();function toast(t)
 async function api(u,o={}){const r=await fetch(u,{headers:{'Content-Type':'application/json',...(o.headers||{})},...o});if(r.status===401){showLogin();throw Error('auth')}if(!r.ok)throw Error(await r.text());return r.json()}
 function showLogin(){$('#adminLogin').classList.remove('hidden');$('#adminApp').classList.add('hidden')}function showApp(){$('#adminLogin').classList.add('hidden');$('#adminApp').classList.remove('hidden')}
 function esc(s){return String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]))}
-function openLightboxFromImg(imgEl, container){
-  const els=[...(container||document).querySelectorAll('[data-img-open]')];
-  const list=els.map(o=>o.dataset.imgOpen);
-  let idx=els.indexOf(imgEl); if(idx<0) idx=0;
-  openLightbox(list[idx]||imgEl.dataset.imgOpen, list, idx);
+function highlightAndScrollTo(el){
+  if(!el) return;
+  const target = el.closest('.media-card, .file-item, .file-card, .bubble, .message, .admin-file-item, .admin-msg-item, tr') || el;
+  requestAnimationFrame(()=>{
+    target.scrollIntoView({behavior:'smooth',block:'center'});
+    target.classList.remove('item-highlight-pulse');
+    void target.offsetWidth;
+    target.classList.add('item-highlight-pulse');
+    setTimeout(()=>target.classList.remove('item-highlight-pulse'),1800);
+  });
 }
-function openLightbox(src, gallery=null, gIndex=0){
-  let old=document.querySelector('.lightbox'); old?.remove();
+function openLightboxFromImg(imgEl, container){
+  const sel = imgEl.hasAttribute('data-img-open') ? '[data-img-open]' : 'img.zoomable';
+  const imgs=[...(container||document).querySelectorAll(sel)];
+  const list=imgs.map(im=>im.dataset.imgOpen||im.dataset.full||im.src);
+  let idx=imgs.indexOf(imgEl); if(idx<0) idx=0;
+  openLightbox(list[idx]||imgEl.dataset.imgOpen||imgEl.dataset.full||imgEl.src, document.body, false, list, idx, imgs);
+}
+function openLightbox(src, mount=document.body, round=false, gallery=null, gIndex=0, imgEls=null){
+  let old=document.querySelector('.lightbox'); if(old){old.remove();}
   document.documentElement.classList.add('lightbox-open'); document.body.classList.add('lightbox-open');
+  
   let zoom=1, x=0, y=0, pointers=new Map(), dragStart=null, pinchStart=null, tapStart=null, clickTimer=null;
+  let isSwiping=false, isTransitioning=false;
   const gList=Array.isArray(gallery)&&gallery.length?gallery:[src]; let gPos=Math.max(0,Math.min(gIndex,gList.length-1));
+  const gEls=Array.isArray(imgEls)&&imgEls.length===gList.length?imgEls:null;
   const clamp=(v,min,max)=>Math.max(min,Math.min(max,v));
-  let box=document.createElement('div'); box.className='lightbox';
-  const counter=gList.length>1?`<div class="lightbox-counter"><span>${gPos+1}</span> / ${gList.length}</div>`:'';
+
+  let box=document.createElement('div'); box.className='lightbox'+(round?' lightbox-round':'');
+  const counter=gList.length>1?`<span class="lightbox-counter-inline"><span>${gPos+1}</span>/${gList.length}</span>`:'';
   const navBtns=gList.length>1?`<button class="lightbox-nav prev" data-gprev aria-label="上一张">‹</button><button class="lightbox-nav next" data-gnext aria-label="下一张">›</button>`:'';
-  box.innerHTML=`<div class="lightbox-tools"><button data-zout>−</button><button data-zreset>100%</button><button data-zin>＋</button><button class="lightbox-close">×</button></div>${counter}${navBtns}<img class="lightbox-img" src="${src}" alt="大图">`;
-  const img=()=>box.querySelector('img');
-  const apply=()=>{const im=img(); im.style.transform=`translate(${x}px, ${y}px) scale(${zoom})`; im.style.cursor=zoom>1?'grab':'zoom-in'};
-  const reset=()=>{zoom=1;x=0;y=0;apply()};
-  const close=()=>{box.remove(); document.documentElement.classList.remove('lightbox-open'); document.body.classList.remove('lightbox-open')};
-  const updateCounter=()=>{ const c=box.querySelector('.lightbox-counter span'); if(c) c.textContent=String(gPos+1); };
-  function go(dir){ if(gList.length<2) return; const ni=gPos+dir; if(ni<0||ni>=gList.length) return; gPos=ni; const im=img(); reset(); const outX=dir>0?'-60%':'60%', inFrom=dir>0?'60%':'-60%'; im.style.transition='transform .16s ease, opacity .16s ease'; im.style.opacity='0'; im.style.transform=`translateX(${outX}) scale(.96)`; setTimeout(()=>{ im.src=gList[gPos]; im.style.transition='none'; im.style.opacity='0'; im.style.transform=`translateX(${inFrom}) scale(.96)`; requestAnimationFrame(()=>{ im.style.transition='transform .2s ease, opacity .2s ease'; zoom=1;x=0;y=0; im.style.opacity='1'; im.style.transform='translate(0px,0px) scale(1)'; setTimeout(()=>{im.style.transition='none'; apply();},210); }); updateCounter(); },170); }
+  const locateBtn=`<button data-glocate title="定位到原图位置">📍</button>`;
+
+  // 3 槽平移轨道：-100vw - gap(24px) | 0 | 100vw + gap(24px)
+  box.innerHTML=`<div class="lightbox-tools">${locateBtn}${counter}<button data-zout title="缩小">−</button><button data-zreset title="重置">100%</button><button data-zin title="放大">＋</button><button class="lightbox-close" title="关闭">×</button></div>${navBtns}<div class="lightbox-viewport"><div class="lightbox-track"><div class="lightbox-slot slot-prev"></div><div class="lightbox-slot slot-curr"><img class="lightbox-img" src="${src}" alt="大图"></div><div class="lightbox-slot slot-next"></div></div></div>`;
+
+  const viewport=box.querySelector('.lightbox-viewport');
+  const track=box.querySelector('.lightbox-track');
+  const slotPrev=box.querySelector('.slot-prev');
+  const slotCurr=box.querySelector('.slot-curr');
+  const slotNext=box.querySelector('.slot-next');
+
+  const img=()=>slotCurr.querySelector('.lightbox-img');
+  
+  const applyZoom=()=>{ const im=img(); if(im){ im.style.transform=`translate3d(${x}px, ${y}px, 0) scale(${zoom})`; im.style.cursor=zoom>1?'grab':'zoom-in'; } };
+  const resetZoom=()=>{zoom=1;x=0;y=0;applyZoom()};
+  
+  const close=()=>{box.remove(); if(!document.querySelector('.lightbox')){document.documentElement.classList.remove('lightbox-open'); document.body.classList.remove('lightbox-open'); document.body.style.transform=''; document.documentElement.style.transform=''}};
+  const updateCounter=()=>{ const c=box.querySelector('.lightbox-counter-inline span'); if(c) c.textContent=String(gPos+1); };
+
+  function renderSlots(){
+    // 渲染 prev
+    if(gPos>0){
+      slotPrev.innerHTML=`<img class="lightbox-img" src="${gList[gPos-1]}" alt="上一张">`;
+    } else {
+      slotPrev.innerHTML='';
+    }
+    // 渲染 next
+    if(gPos<gList.length-1){
+      slotNext.innerHTML=`<img class="lightbox-img" src="${gList[gPos+1]}" alt="下一张">`;
+    } else {
+      slotNext.innerHTML='';
+    }
+  }
+  renderSlots();
+
+  function locateCurrent(){
+    const targetEl = (gEls && gEls[gPos]) || null;
+    close();
+    if(targetEl && targetEl.nodeType){
+      highlightAndScrollTo(targetEl);
+    } else {
+      const match = document.querySelector(`img.zoomable[data-full="${CSS.escape(gList[gPos])}"], img.zoomable[src="${CSS.escape(gList[gPos])}"], [data-img-open="${CSS.escape(gList[gPos])}"]`);
+      if(match) highlightAndScrollTo(match);
+    }
+  }
+
+  // 轨道平移动画（420ms，极度平滑的自然减速曲线）
+  function slideTo(targetPos, dur=420){
+    if(isTransitioning) return;
+    isTransitioning=true;
+    const diff = targetPos - gPos; // +1: 下一张, -1: 上一张, 0: 回原位
+    const slotW = window.innerWidth + 24;
+    const targetTranslate = -diff * slotW;
+
+    track.style.transition = `transform ${dur}ms cubic-bezier(0.16, 1, 0.3, 1)`;
+    track.style.transform = `translate3d(${targetTranslate}px, 0, 0)`;
+
+    setTimeout(()=>{
+      track.style.transition = 'none';
+      if(diff !== 0){
+        gPos = targetPos;
+        slotCurr.innerHTML = `<img class="lightbox-img" src="${gList[gPos]}" alt="大图">`;
+        updateCounter();
+        renderSlots();
+      }
+      track.style.transform = 'translate3d(0, 0, 0)';
+      zoom=1; x=0; y=0;
+      isTransitioning=false;
+      isSwiping=false;
+      applyZoom();
+    }, dur + 10);
+  }
+
+  function go(dir){
+    if(gList.length<2 || isTransitioning) return;
+    const ni=gPos+dir;
+    if(ni<0 || ni>=gList.length) return;
+    slideTo(ni, 420);
+  }
+
   const dist=(a,b)=>Math.hypot(a.clientX-b.clientX,a.clientY-b.clientY);
   const mid=(a,b)=>({clientX:(a.clientX+b.clientX)/2,clientY:(a.clientY+b.clientY)/2});
-  const zoomAt=(newZoom,cx,cy)=>{newZoom=clamp(newZoom,.5,6); const rect=img().getBoundingClientRect(); const ox=cx-(rect.left+rect.width/2); const oy=cy-(rect.top+rect.height/2); x-=ox*(newZoom/zoom-1); y-=oy*(newZoom/zoom-1); zoom=newZoom; apply()};
-  box.onclick=e=>{if(e.target.closest('[data-gprev]')){go(-1);return} if(e.target.closest('[data-gnext]')){go(1);return} if(e.target===box||e.target.closest('.lightbox-close')) close(); if(e.target.closest('[data-zin]')) zoomAt(zoom+.25,innerWidth/2,innerHeight/2); if(e.target.closest('[data-zout]')) zoomAt(zoom-.25,innerWidth/2,innerHeight/2); if(e.target.closest('[data-zreset]')) reset()};
-  box.addEventListener('wheel',e=>{e.preventDefault(); zoomAt(zoom*(e.deltaY<0?1.12:.88),e.clientX,e.clientY)},{passive:false});
-  box.addEventListener('dblclick',e=>{e.preventDefault(); clearTimeout(clickTimer); if(zoom>1.05) reset(); else zoomAt(2.5,e.clientX,e.clientY)});
-  box.addEventListener('pointerdown',e=>{if(!e.target.closest('.lightbox-img'))return;e.preventDefault();pointers.set(e.pointerId,{clientX:e.clientX,clientY:e.clientY});if(pointers.size===1)tapStart={x:e.clientX,y:e.clientY,t:Date.now(),moved:false,swiped:false};img().setPointerCapture?.(e.pointerId);if(pointers.size===1){dragStart={sx:e.clientX,sy:e.clientY,bx:x,by:y};img().style.cursor='grabbing'}if(pointers.size===2){tapStart=null;let ps=[...pointers.values()];pinchStart={d:dist(ps[0],ps[1]),z:zoom,bx:x,by:y,m:mid(ps[0],ps[1])}}},{passive:false});
-  box.addEventListener('pointermove',e=>{if(!pointers.has(e.pointerId))return;e.preventDefault();pointers.set(e.pointerId,{clientX:e.clientX,clientY:e.clientY});if(tapStart){const dx=e.clientX-tapStart.x,dy=e.clientY-tapStart.y;if(dx*dx+dy*dy>64)tapStart.moved=true;}if(pointers.size===2&&pinchStart){let ps=[...pointers.values()],m=mid(ps[0],ps[1]);zoom=clamp(pinchStart.z*dist(ps[0],ps[1])/Math.max(1,pinchStart.d),.5,6);x=pinchStart.bx+(m.clientX-pinchStart.m.clientX);y=pinchStart.by+(m.clientY-pinchStart.m.clientY);apply();return}if(pointers.size===1&&dragStart&&zoom>1){x=dragStart.bx+(e.clientX-dragStart.sx);y=dragStart.by+(e.clientY-dragStart.sy);apply()}},{passive:false});
-  const end=e=>{
-    const wasTap=tapStart&&!tapStart.moved&&(Date.now()-tapStart.t<300)&&pointers.size===1;
-    if(tapStart&&!tapStart.swiped&&zoom<=1.05&&pointers.size===1&&gList.length>1){
-      const dx=e.clientX-tapStart.x,dy=e.clientY-tapStart.y,adx=Math.abs(dx),ady=Math.abs(dy);
-      if(adx>80&&adx>ady*1.3){tapStart.swiped=true;pointers.delete(e.pointerId);dragStart=null;go(dx<0?1:-1);tapStart=null;return;}
-      if(ady>80&&ady>adx*1.3){tapStart.swiped=true;pointers.delete(e.pointerId);dragStart=null;go(dy<0?1:-1);tapStart=null;return;}
+  const zoomAt=(newZoom,cx,cy)=>{newZoom=clamp(newZoom,.5,6); const im=img(); if(!im)return; const rect=im.getBoundingClientRect(); const ox=cx-(rect.left+rect.width/2); const oy=cy-(rect.top+rect.height/2); if(zoom!==0){x-=ox*(newZoom/zoom-1); y-=oy*(newZoom/zoom-1)} zoom=newZoom; applyZoom()};
+
+  box.onclick=e=>{
+    if(e.target.closest('[data-glocate]')){locateCurrent();return}
+    if(e.target.closest('[data-gprev]')){go(-1);return}
+    if(e.target.closest('[data-gnext]')){go(1);return}
+    if(e.target===box||e.target===viewport||e.target.closest('.lightbox-close')) close();
+    if(e.target.closest('[data-zin]')) zoomAt(zoom+.25, innerWidth/2, innerHeight/2);
+    if(e.target.closest('[data-zout]')) zoomAt(zoom-.25, innerWidth/2, innerHeight/2);
+    if(e.target.closest('[data-zreset]')) resetZoom();
+  };
+
+  box.addEventListener('wheel',e=>{e.preventDefault(); zoomAt(zoom*(e.deltaY<0?1.12:.88), e.clientX, e.clientY)},{passive:false});
+  box.addEventListener('dblclick',e=>{e.preventDefault(); clearTimeout(clickTimer); if(zoom>1.05) resetZoom(); else zoomAt(2.5,e.clientX,e.clientY)});
+
+  box.addEventListener('pointerdown',e=>{
+    if(!e.target.closest('.lightbox-img') || isTransitioning) return;
+    e.preventDefault();
+    pointers.set(e.pointerId,{clientX:e.clientX,clientY:e.clientY});
+    if(pointers.size===1){
+      tapStart={x:e.clientX,y:e.clientY,t:Date.now(),moved:false};
+      isSwiping=false;
+      track.style.transition='none';
     }
-    pointers.delete(e.pointerId);dragStart=null;pinchStart=null;img().style.cursor=zoom>1?'grab':'zoom-in';if(wasTap&&pointers.size===0&&zoom<=1.05){clearTimeout(clickTimer);clickTimer=setTimeout(close,280);}tapStart=null;
-  }; box.addEventListener('pointerup',end); box.addEventListener('pointercancel',end);
-  document.addEventListener('keydown',function escKey(e){if(e.key==='Escape'){close();document.removeEventListener('keydown',escKey)} else if(e.key==='ArrowLeft'){go(-1)} else if(e.key==='ArrowRight'){go(1)}});
-  document.body.appendChild(box); apply();
+    img()?.setPointerCapture?.(e.pointerId);
+    if(pointers.size===1 && zoom>1){
+      dragStart={sx:e.clientX,sy:e.clientY,bx:x,by:y};
+      const im=img(); if(im)im.style.cursor='grabbing';
+    }
+    if(pointers.size===2){
+      tapStart=null; isSwiping=false;
+      track.style.transform='translate3d(0, 0, 0)';
+      let ps=[...pointers.values()];
+      pinchStart={d:dist(ps[0],ps[1]),z:zoom,bx:x,by:y,m:mid(ps[0],ps[1])};
+    }
+  },{passive:false});
+
+  box.addEventListener('pointermove',e=>{
+    if(!pointers.has(e.pointerId) || isTransitioning) return;
+    e.preventDefault();
+    pointers.set(e.pointerId,{clientX:e.clientX,clientY:e.clientY});
+    
+    // 双指缩放
+    if(pointers.size===2 && pinchStart){
+      let ps=[...pointers.values()]; let m=mid(ps[0],ps[1]);
+      zoom=clamp(pinchStart.z*dist(ps[0],ps[1])/Math.max(1,pinchStart.d),.5,6);
+      x=pinchStart.bx+(m.clientX-pinchStart.m.clientX);
+      y=pinchStart.by+(m.clientY-pinchStart.m.clientY);
+      applyZoom(); return;
+    }
+
+    // 放大后单指拖拽图片自身
+    if(pointers.size===1 && zoom>1.05 && dragStart){
+      x=dragStart.bx+(e.clientX-dragStart.sx);
+      y=dragStart.by+(e.clientY-dragStart.sy);
+      applyZoom(); return;
+    }
+
+    // 1倍率下滑动整个轨道（100% 真实物理跟手）
+    if(pointers.size===1 && zoom<=1.05 && tapStart){
+      const dx=e.clientX-tapStart.x, dy=e.clientY-tapStart.y;
+      if(Math.abs(dx)>6 || Math.abs(dy)>6) tapStart.moved=true;
+
+      if(!isSwiping && Math.abs(dx)>8 && Math.abs(dx)>Math.abs(dy)*1.2 && gList.length>1){
+        isSwiping=true;
+      }
+
+      if(isSwiping){
+        let moveX=dx;
+        // 边界阻尼感
+        if((gPos===0 && dx>0) || (gPos===gList.length-1 && dx<0)){
+          moveX = dx * 0.35;
+        }
+        track.style.transform=`translate3d(${moveX}px, 0, 0)`;
+      }
+    }
+  },{passive:false});
+
+  const end=e=>{
+    if(!pointers.has(e.pointerId)) return;
+    pointers.delete(e.pointerId);
+    
+    if(isSwiping){
+      const dx=e.clientX-tapStart.x;
+      const dt=Date.now()-tapStart.t;
+      const velocity=Math.abs(dx)/Math.max(1,dt); // 速度像素/毫秒
+      
+      const shouldSwitch = (Math.abs(dx) > window.innerWidth * 0.18) || (velocity > 0.45 && Math.abs(dx) > 30);
+      const dir = dx < 0 ? 1 : -1;
+      const nextPos = gPos + dir;
+
+      if(shouldSwitch && nextPos >= 0 && nextPos < gList.length){
+        slideTo(nextPos, 420);
+      } else {
+        // 弹回当前
+        slideTo(gPos, 320);
+      }
+      tapStart=null; dragStart=null; pinchStart=null;
+      return;
+    }
+
+    const wasTap = tapStart && !tapStart.moved && (Date.now()-tapStart.t<300) && pointers.size===0;
+    dragStart=null; pinchStart=null;
+    const im=img(); if(im)im.style.cursor=zoom>1?'grab':'zoom-in';
+    if(wasTap && zoom<=1.05){
+      clearTimeout(clickTimer);
+      clickTimer=setTimeout(close,260);
+    }
+    tapStart=null;
+  };
+
+  box.addEventListener('pointerup',end);
+  box.addEventListener('pointercancel',end);
+  box.addEventListener('pointerleave',e=>{ if(pointers.has(e.pointerId)) end(e) });
+
+  document.addEventListener('keydown',function esc(e){
+    if(e.key==='Escape'){close(); document.removeEventListener('keydown',esc)}
+    else if(e.key==='ArrowLeft'){go(-1)}
+    else if(e.key==='ArrowRight'){go(1)}
+  });
+
+  (mount||document.body).appendChild(box); applyZoom();
 }
 function openVideoBox(src,poster=''){
   let old=document.querySelector('.video-lightbox'); old?.remove();
@@ -90,19 +284,122 @@ function filterUsers(){loadUsers(1)}
 async function loadUsers(page){page=page||pageState.users||1;pageState.users=page;let q=encodeURIComponent($('#userQ')?.value||'');let d=await api(`/api/admin/users?page=${page}&per_page=20${q?`&q=${q}`:''}`);allUsers=d.users||[];let html=renderUsers(allUsers);html+=pagerHTML('users',d.total||0,page,20);$('#users').innerHTML=html}
 $('#userQ') && ($('#userQ').oninput=()=>{clearTimeout(window.userT);window.userT=setTimeout(filterUsers,200)});
 $('#users').onclick=async e=>{let b=e.target.closest('button');if(!b)return;let id=b.dataset.usave||b.dataset.udel||b.dataset.ureset;if(b.dataset.usave){let nick=document.querySelector(`[data-unick="${id}"]`).value;await api(`/api/admin/users/${id}`,{method:'PATCH',body:JSON.stringify({nickname:nick})});toast('已保存')}if(b.dataset.ureset){if(confirm('重置该用户密码？重置后变为无密码（凭身份码即可恢复）。')){await api(`/api/admin/users/${id}/reset-secret`,{method:'POST'});toast('密码已重置');loadUsers(pageState.users)}}if(b.dataset.udel){if(confirm('确定删除这个用户身份？历史消息会保留，但显示为未知用户。')){await api(`/api/admin/users/${id}`,{method:'DELETE'});toast('用户已删除');loadUsers(pageState.users)}}}
-function statusLabel(m){ const vis = m.private?'<span class="status priv-text">🔒私人</span>':'<span class="status grp-text">💬群聊</span>'; if(m.deleted) return vis+' <span class="status danger-text">已删除</span>'; if(m.withdrawn) return vis+' <span class="status warn-text">已撤回</span>'; return vis+' <span class="status ok-text">正常</span>' }
-function actionButtons(m){
-  const save=`<button data-msave="${m.id}" class="ghost">保存内容</button>`;
-  const del=`<button data-mdel="${m.id}" class="danger">删除</button>`;
-  if(m.deleted) return `<button data-mrestore="${m.id}" class="ghost">恢复显示</button>`;
-  if(m.withdrawn) return `${save}<button data-mrestore="${m.id}" class="ghost">恢复显示</button>${del}`;
-  return `${save}<button data-mwithdraw="${m.id}" class="ghost">撤回</button>${del}`;
+function statusLabel(m){
+  const vis = m.private ? '<span class="status-badge priv">🔒 私人</span>' : '<span class="status-badge grp">💬 群聊</span>';
+  if(m.deleted) return vis + ' <span class="status-badge del">已删除</span>';
+  if(m.withdrawn) return vis + ' <span class="status-badge wdn">已撤回</span>';
+  return vis + ' <span class="status-badge ok">正常</span>';
 }
-function fileHint(m){ if(!m.file) return ''; let f=m.file; fileStore.set(f.id,f); const detail=`<span class="admin-file-name-wrap"><button type="button" class="file-name-trigger admin-file-name-mini" data-file-info="${f.id}" title="${esc(f.name)}">${esc(f.name)}</button></span>`; const view=f.admin_view_url||f.public_view_url||f.view_url||f.url, poster=f.admin_preview_url||f.public_preview_url||f.preview_url||''; if(f.kind==='image') return `${detail}<button type="button" class="admin-media-preview preview-btn" data-img-open="${view}"><img src="${view}" alt="${esc(f.name)}" loading="lazy"></button><a href="${f.admin_view_url||f.page_url||view}" target="_blank" rel="noopener">打开图片</a>`; if(f.kind==='video') return `${detail}<button type="button" class="admin-media-preview preview-btn video-thumb" data-video-open="${view}" data-poster="${poster}"><img src="${poster}" alt="${esc(f.name)}" loading="lazy" onerror="this.style.display='none'"><span class="play-badge">▶</span></button><a href="${f.admin_view_url||f.page_url||view}" target="_blank" rel="noopener">打开视频</a><a href="${f.admin_download_url||f.public_download_url||f.url}" download>下载视频</a>`; if(f.kind==='audio') return `${detail}<div class="admin-media-preview audio"><audio src="${view}" controls preload="metadata"></audio></div><a href="${f.admin_view_url||f.page_url||view}" target="_blank" rel="noopener">打开音频</a><a href="${f.admin_download_url||f.public_download_url||f.url}" download>下载音频</a>`; if(f.kind==='text') return `${detail}<div class="admin-media-preview text-preview">📝</div><button type="button" data-text-file="${f.id}">在线查看/编辑</button><a href="${f.admin_view_url||f.page_url||view}" target="_blank" rel="noopener">打开文本</a><a href="${f.admin_download_url||f.public_download_url||f.url}" download>下载文本</a>`; return `${detail}<a href="${f.admin_view_url||f.page_url||f.url}" target="_blank" rel="noopener">查看文件</a>` }
-async function loadMsgs(page){page=page||pageState.msgs||1;pageState.msgs=page;let q=encodeURIComponent($('#msgQ').value);let d=await api(`/api/admin/messages?q=${q}&page=${page}&per_page=30`);$('#adminMessages').innerHTML=`<div class="admin-batch"><label><input id="selectAllMsgs" type="checkbox"> 全选</label><button data-batch="withdraw" class="ghost">批量撤回</button><button data-batch="restore" class="ghost">批量恢复显示</button><button data-batch="delete" class="danger">批量删除</button></div>`+(d.messages||[]).map(m=>`<div class="admin-row msg-admin-row" data-row="${m.id}"><label class="msg-check"><input type="checkbox" class="msgSelect" value="${m.id}"> ${statusLabel(m)} <small>${new Date(m.created_at).toLocaleString()} · ${esc(m.user?.nickname||'')}</small> ${fileHint(m)}</label><textarea data-mtext="${m.id}">${esc(m.content)}</textarea><div class="admin-actions">${actionButtons(m)}</div></div>`).join('')+pagerHTML('msgs',d.total||0,page,30)}
+function actionButtons(m){
+  const save = `<button type="button" data-msave="${m.id}" class="btn-msg-act save">保存修改</button>`;
+  const del = `<button type="button" data-mdel="${m.id}" class="btn-msg-act del">删除</button>`;
+  if(m.deleted) return `<button type="button" data-mrestore="${m.id}" class="btn-msg-act restore">恢复显示</button>`;
+  if(m.withdrawn) return `${save}<button type="button" data-mrestore="${m.id}" class="btn-msg-act restore">恢复显示</button>${del}`;
+  return `${save}<button type="button" data-mwithdraw="${m.id}" class="btn-msg-act withdraw">撤回</button>${del}`;
+}
+function fileHint(m){
+  if(!m.file) return '';
+  let f=m.file; fileStore.set(f.id,f);
+  const view=f.admin_view_url||f.public_view_url||f.view_url||f.url;
+  const poster=f.admin_preview_url||f.public_preview_url||f.preview_url||'';
+  const down=f.admin_download_url||f.public_download_url||f.url;
+  
+  let mediaHtml = '';
+  if(f.kind==='image'){
+    mediaHtml = `<div class="msg-file-thumb" data-img-open="${view}"><img src="${view}" alt="${esc(f.name)}" loading="lazy"><span class="zoom-tag">🔍</span></div>`;
+  } else if(f.kind==='video'){
+    mediaHtml = `<div class="msg-file-thumb video-thumb" data-video-open="${view}" data-poster="${poster}">${poster?`<img src="${poster}" alt="${esc(f.name)}" loading="lazy" onerror="this.style.display='none'">`:''}<span class="play-badge-mini">▶</span></div>`;
+  } else if(f.kind==='audio'){
+    mediaHtml = `<div class="msg-file-audio"><audio src="${view}" controls preload="metadata"></audio></div>`;
+  }
+
+  return `<div class="msg-file-card">
+    <div class="msg-file-main">
+      ${mediaHtml}
+      <div class="msg-file-meta">
+        <button type="button" class="file-name-trigger msg-file-name" data-file-info="${f.id}" title="${esc(f.name)}">${esc(f.name)}</button>
+        <div class="msg-file-sub">${esc(f.kind||'file')} · ${size(f.size||0)}</div>
+      </div>
+    </div>
+    <div class="msg-file-actions">
+      <a href="${view}" target="_blank" rel="noopener" class="file-link-btn">查看</a>
+      <a href="${down}" download class="file-link-btn">下载</a>
+      ${f.kind==='text'?`<button type="button" data-text-file="${f.id}" class="file-link-btn text-edit">编辑文本</button>`:''}
+    </div>
+  </div>`;
+}
+function renderSingleMsg(m){
+  const timeStr = m.created_at ? new Date(m.created_at).toLocaleString([], {year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'}) : '未知时间';
+  const isDeleted = !!m.deleted;
+  const isWithdrawn = !!m.withdrawn;
+  const cardCls = 'msg-admin-card' + (isDeleted ? ' is-deleted' : '') + (isWithdrawn ? ' is-withdrawn' : '');
+
+  return `<div class="${cardCls}" data-row="${m.id}">
+    <div class="msg-card-header">
+      <div class="msg-card-user">
+        <label class="msg-checkbox-label">
+          <input type="checkbox" class="msgSelect" value="${m.id}">
+          <span class="custom-checkbox"></span>
+        </label>
+        <span class="msg-author-name">${esc(m.user?.nickname || '未知用户')}</span>
+        <div class="msg-status-group">${statusLabel(m)}</div>
+      </div>
+      <div class="msg-card-time">${esc(timeStr)}</div>
+    </div>
+    <div class="msg-card-body">
+      ${m.content ? `<textarea class="msg-content-textarea" data-mtext="${m.id}" placeholder="消息内容">${esc(m.content)}</textarea>` : `<textarea class="msg-content-textarea empty" data-mtext="${m.id}" placeholder="（纯文件无文字，可输入内容后保存）"></textarea>`}
+      ${fileHint(m)}
+    </div>
+    <div class="msg-card-footer">
+      <div class="msg-id-tag">ID: <code>${m.id.slice(0,8)}</code></div>
+      <div class="msg-action-btns">${actionButtons(m)}</div>
+    </div>
+  </div>`;
+}
+async function loadMsgs(page){
+  page=page||pageState.msgs||1;
+  pageState.msgs=page;
+  let q=encodeURIComponent($('#msgQ')?.value||'');
+  let t=encodeURIComponent($('#msgType')?.value||'');
+  let d=await api(`/api/admin/messages?q=${q}&type=${t}&page=${page}&per_page=30`);
+  const msgs = d.messages || [];
+  const listHtml = msgs.length ? msgs.map(renderSingleMsg).join('') : '<div class="admin-empty-state">💬 暂无符合条件的消息</div>';
+  $('#adminMessages').innerHTML = `<div class="admin-batch msg-batch-bar">
+    <div class="batch-left">
+      <label class="batch-select-all"><input id="selectAllMsgs" type="checkbox"> 全选本页</label>
+      <span class="batch-count-tag" id="msgSelCount"></span>
+    </div>
+    <div class="batch-right">
+      <button data-batch="withdraw" class="batch-btn ghost">批量撤回</button>
+      <button data-batch="restore" class="batch-btn ghost">批量恢复</button>
+      <button data-batch="delete" class="batch-btn danger">批量删除</button>
+    </div>
+  </div>` + listHtml + pagerHTML('msgs', d.total || 0, page, 30);
+  updateMsgSelCount();
+}
+function updateMsgSelCount(){
+  const n = selectedIds().length;
+  const el = $('#msgSelCount');
+  if(el) el.textContent = n ? `已选 ${n} 条` : '';
+}
 $('#loadMessages').onclick=()=>loadMsgs(1);
+$('#msgType') && ($('#msgType').onchange=()=>loadMsgs(1));
+$('#msgQ') && ($('#msgQ').oninput=()=>{clearTimeout(window.msgT);window.msgT=setTimeout(()=>loadMsgs(1),300)});
 function selectedIds(){return [...document.querySelectorAll('.msgSelect:checked')].map(x=>x.value)}
-$('#adminMessages').onclick=async e=>{if(e.target?.id==='selectAllMsgs'){document.querySelectorAll('.msgSelect').forEach(x=>x.checked=e.target.checked);return} let b=e.target.closest('button'); if(!b)return; if(b.dataset.batch){let ids=selectedIds(); if(!ids.length){toast('先勾选消息');return} if(b.dataset.batch==='delete'&&!confirm(`确定删除选中的 ${ids.length} 条消息？`))return; await api('/api/admin/messages/batch',{method:'POST',body:JSON.stringify({ids,action:b.dataset.batch})}); toast('批量操作完成'); loadMsgs(pageState.msgs); return} let id=b.dataset.msave||b.dataset.mwithdraw||b.dataset.mrestore||b.dataset.mdel; if(b.dataset.msave){await api(`/api/admin/messages/${id}`,{method:'PATCH',body:JSON.stringify({content:document.querySelector(`[data-mtext="${id}"]`).value})}); toast('已保存')} if(b.dataset.mwithdraw){await api(`/api/admin/messages/${id}`,{method:'PATCH',body:JSON.stringify({withdrawn:1})}); toast('已撤回')} if(b.dataset.mrestore){await api(`/api/admin/messages/${id}`,{method:'PATCH',body:JSON.stringify({withdrawn:0,deleted:0})}); toast('已恢复显示')} if(b.dataset.mdel&&confirm('确定删除这条消息？删除后普通聊天不显示。')){await api(`/api/admin/messages/${id}`,{method:'PATCH',body:JSON.stringify({deleted:1})}); toast('已删除')} loadMsgs(pageState.msgs)}
+$('#adminMessages').onclick=async e=>{
+  if(e.target?.id==='selectAllMsgs'){
+    document.querySelectorAll('.msgSelect').forEach(x=>{
+      x.checked=e.target.checked;
+      x.closest('.msg-admin-card')?.classList.toggle('msg-selected', e.target.checked);
+    });
+    updateMsgSelCount();
+    return;
+  }
+  if(e.target?.classList?.contains('msgSelect')){
+    e.target.closest('.msg-admin-card')?.classList.toggle('msg-selected', e.target.checked);
+    updateMsgSelCount();
+    return;
+  }if(e.target?.id==='selectAllMsgs'){document.querySelectorAll('.msgSelect').forEach(x=>x.checked=e.target.checked);return} let b=e.target.closest('button'); if(!b)return; if(b.dataset.batch){let ids=selectedIds(); if(!ids.length){toast('先勾选消息');return} if(b.dataset.batch==='delete'&&!confirm(`确定删除选中的 ${ids.length} 条消息？`))return; await api('/api/admin/messages/batch',{method:'POST',body:JSON.stringify({ids,action:b.dataset.batch})}); toast('批量操作完成'); loadMsgs(pageState.msgs); return} let id=b.dataset.msave||b.dataset.mwithdraw||b.dataset.mrestore||b.dataset.mdel; if(b.dataset.msave){await api(`/api/admin/messages/${id}`,{method:'PATCH',body:JSON.stringify({content:document.querySelector(`[data-mtext="${id}"]`).value})}); toast('已保存')} if(b.dataset.mwithdraw){await api(`/api/admin/messages/${id}`,{method:'PATCH',body:JSON.stringify({withdrawn:1})}); toast('已撤回')} if(b.dataset.mrestore){await api(`/api/admin/messages/${id}`,{method:'PATCH',body:JSON.stringify({withdrawn:0,deleted:0})}); toast('已恢复显示')} if(b.dataset.mdel&&confirm('确定删除这条消息？删除后普通聊天不显示。')){await api(`/api/admin/messages/${id}`,{method:'PATCH',body:JSON.stringify({deleted:1})}); toast('已删除')} loadMsgs(pageState.msgs)}
 $('#saveSettings').onclick=async()=>{await api('/api/admin/settings',{method:'PATCH',body:JSON.stringify({access_password:$('#newAccess').value,admin_password:$('#newAdmin').value,site_title:$('#newTitle').value,files_title:$('#newFilesTitle').value,admin_magic_code:$('#newMagic').value,upload_size_limit:$('#newUploadLimit').value})});toast('配置已保存，密码变更会让旧登录失效');loadConfig()}
 $('#clearMessages').onclick=async()=>{if(confirm('确定清空聊天记录？')){await api('/api/admin/clear-messages',{method:'POST'});toast('已清空');loadMsgs(1)}}
 init();

@@ -10,48 +10,241 @@ function preview(f){
   if(f.kind==='text') return `<div class="file-preview text-preview">📝</div>`;
   return '';
 }
-function openLightboxFromImg(imgEl, container){
-  const imgs=[...(container||document).querySelectorAll('img.zoomable')];
-  const list=imgs.map(im=>im.dataset.full||im.src);
-  let idx=imgs.indexOf(imgEl); if(idx<0) idx=0;
-  openLightbox(list[idx]||imgEl.dataset.full||imgEl.src, list, idx);
+function highlightAndScrollTo(el){
+  if(!el) return;
+  const target = el.closest('.media-card, .file-item, .file-card, .bubble, .message, .admin-file-item, .admin-msg-item, tr') || el;
+  requestAnimationFrame(()=>{
+    target.scrollIntoView({behavior:'smooth',block:'center'});
+    target.classList.remove('item-highlight-pulse');
+    void target.offsetWidth;
+    target.classList.add('item-highlight-pulse');
+    setTimeout(()=>target.classList.remove('item-highlight-pulse'),1800);
+  });
 }
-function openLightbox(src, gallery=null, gIndex=0){
-  let old=document.querySelector('.lightbox'); old?.remove();
+function openLightboxFromImg(imgEl, container){
+  const sel = imgEl.hasAttribute('data-img-open') ? '[data-img-open]' : 'img.zoomable';
+  const imgs=[...(container||document).querySelectorAll(sel)];
+  const list=imgs.map(im=>im.dataset.imgOpen||im.dataset.full||im.src);
+  let idx=imgs.indexOf(imgEl); if(idx<0) idx=0;
+  openLightbox(list[idx]||imgEl.dataset.imgOpen||imgEl.dataset.full||imgEl.src, document.body, false, list, idx, imgs);
+}
+function openLightbox(src, mount=document.body, round=false, gallery=null, gIndex=0, imgEls=null){
+  let old=document.querySelector('.lightbox'); if(old){old.remove();}
   document.documentElement.classList.add('lightbox-open'); document.body.classList.add('lightbox-open');
+  
   let zoom=1, x=0, y=0, pointers=new Map(), dragStart=null, pinchStart=null, tapStart=null, clickTimer=null;
+  let isSwiping=false, isTransitioning=false;
   const gList=Array.isArray(gallery)&&gallery.length?gallery:[src]; let gPos=Math.max(0,Math.min(gIndex,gList.length-1));
+  const gEls=Array.isArray(imgEls)&&imgEls.length===gList.length?imgEls:null;
   const clamp=(v,min,max)=>Math.max(min,Math.min(max,v));
-  let box=document.createElement('div'); box.className='lightbox';
-  const counter=gList.length>1?`<div class="lightbox-counter"><span>${gPos+1}</span> / ${gList.length}</div>`:'';
+
+  let box=document.createElement('div'); box.className='lightbox'+(round?' lightbox-round':'');
+  const counter=gList.length>1?`<span class="lightbox-counter-inline"><span>${gPos+1}</span>/${gList.length}</span>`:'';
   const navBtns=gList.length>1?`<button class="lightbox-nav prev" data-gprev aria-label="上一张">‹</button><button class="lightbox-nav next" data-gnext aria-label="下一张">›</button>`:'';
-  box.innerHTML=`<div class="lightbox-tools"><button data-zout>−</button><button data-zreset>100%</button><button data-zin>＋</button><button class="lightbox-close">×</button></div>${counter}${navBtns}<img class="lightbox-img" src="${src}" alt="大图">`;
-  const img=()=>box.querySelector('img');
-  const apply=()=>{ const im=img(); im.style.transform=`translate(${x}px, ${y}px) scale(${zoom})`; im.style.cursor=zoom>1?'grab':'zoom-in'; };
-  const reset=()=>{zoom=1;x=0;y=0;apply()};
-  const close=()=>{box.remove(); document.documentElement.classList.remove('lightbox-open'); document.body.classList.remove('lightbox-open'); document.body.style.transform=''; document.documentElement.style.transform=''};
-  const updateCounter=()=>{ const c=box.querySelector('.lightbox-counter span'); if(c) c.textContent=String(gPos+1); };
-  function go(dir){ if(gList.length<2) return; const ni=gPos+dir; if(ni<0||ni>=gList.length) return; gPos=ni; const im=img(); reset(); const outX=dir>0?'-60%':'60%', inFrom=dir>0?'60%':'-60%'; im.style.transition='transform .16s ease, opacity .16s ease'; im.style.opacity='0'; im.style.transform=`translateX(${outX}) scale(.96)`; setTimeout(()=>{ im.src=gList[gPos]; im.style.transition='none'; im.style.opacity='0'; im.style.transform=`translateX(${inFrom}) scale(.96)`; requestAnimationFrame(()=>{ im.style.transition='transform .2s ease, opacity .2s ease'; zoom=1;x=0;y=0; im.style.opacity='1'; im.style.transform='translate(0px,0px) scale(1)'; setTimeout(()=>{im.style.transition='none'; apply();},210); }); updateCounter(); },170); }
+  const locateBtn=`<button data-glocate title="定位到原图位置">📍</button>`;
+
+  // 3 槽平移轨道：-100vw - gap(24px) | 0 | 100vw + gap(24px)
+  box.innerHTML=`<div class="lightbox-tools">${locateBtn}${counter}<button data-zout title="缩小">−</button><button data-zreset title="重置">100%</button><button data-zin title="放大">＋</button><button class="lightbox-close" title="关闭">×</button></div>${navBtns}<div class="lightbox-viewport"><div class="lightbox-track"><div class="lightbox-slot slot-prev"></div><div class="lightbox-slot slot-curr"><img class="lightbox-img" src="${src}" alt="大图"></div><div class="lightbox-slot slot-next"></div></div></div>`;
+
+  const viewport=box.querySelector('.lightbox-viewport');
+  const track=box.querySelector('.lightbox-track');
+  const slotPrev=box.querySelector('.slot-prev');
+  const slotCurr=box.querySelector('.slot-curr');
+  const slotNext=box.querySelector('.slot-next');
+
+  const img=()=>slotCurr.querySelector('.lightbox-img');
+  
+  const applyZoom=()=>{ const im=img(); if(im){ im.style.transform=`translate3d(${x}px, ${y}px, 0) scale(${zoom})`; im.style.cursor=zoom>1?'grab':'zoom-in'; } };
+  const resetZoom=()=>{zoom=1;x=0;y=0;applyZoom()};
+  
+  const close=()=>{box.remove(); if(!document.querySelector('.lightbox')){document.documentElement.classList.remove('lightbox-open'); document.body.classList.remove('lightbox-open'); document.body.style.transform=''; document.documentElement.style.transform=''}};
+  const updateCounter=()=>{ const c=box.querySelector('.lightbox-counter-inline span'); if(c) c.textContent=String(gPos+1); };
+
+  function renderSlots(){
+    // 渲染 prev
+    if(gPos>0){
+      slotPrev.innerHTML=`<img class="lightbox-img" src="${gList[gPos-1]}" alt="上一张">`;
+    } else {
+      slotPrev.innerHTML='';
+    }
+    // 渲染 next
+    if(gPos<gList.length-1){
+      slotNext.innerHTML=`<img class="lightbox-img" src="${gList[gPos+1]}" alt="下一张">`;
+    } else {
+      slotNext.innerHTML='';
+    }
+  }
+  renderSlots();
+
+  function locateCurrent(){
+    const targetEl = (gEls && gEls[gPos]) || null;
+    close();
+    if(targetEl && targetEl.nodeType){
+      highlightAndScrollTo(targetEl);
+    } else {
+      const match = document.querySelector(`img.zoomable[data-full="${CSS.escape(gList[gPos])}"], img.zoomable[src="${CSS.escape(gList[gPos])}"], [data-img-open="${CSS.escape(gList[gPos])}"]`);
+      if(match) highlightAndScrollTo(match);
+    }
+  }
+
+  // 轨道平移动画（420ms，极度平滑的自然减速曲线）
+  function slideTo(targetPos, dur=420){
+    if(isTransitioning) return;
+    isTransitioning=true;
+    const diff = targetPos - gPos; // +1: 下一张, -1: 上一张, 0: 回原位
+    const slotW = window.innerWidth + 24;
+    const targetTranslate = -diff * slotW;
+
+    track.style.transition = `transform ${dur}ms cubic-bezier(0.16, 1, 0.3, 1)`;
+    track.style.transform = `translate3d(${targetTranslate}px, 0, 0)`;
+
+    setTimeout(()=>{
+      track.style.transition = 'none';
+      if(diff !== 0){
+        gPos = targetPos;
+        slotCurr.innerHTML = `<img class="lightbox-img" src="${gList[gPos]}" alt="大图">`;
+        updateCounter();
+        renderSlots();
+      }
+      track.style.transform = 'translate3d(0, 0, 0)';
+      zoom=1; x=0; y=0;
+      isTransitioning=false;
+      isSwiping=false;
+      applyZoom();
+    }, dur + 10);
+  }
+
+  function go(dir){
+    if(gList.length<2 || isTransitioning) return;
+    const ni=gPos+dir;
+    if(ni<0 || ni>=gList.length) return;
+    slideTo(ni, 420);
+  }
+
   const dist=(a,b)=>Math.hypot(a.clientX-b.clientX,a.clientY-b.clientY);
   const mid=(a,b)=>({clientX:(a.clientX+b.clientX)/2,clientY:(a.clientY+b.clientY)/2});
-  const zoomAt=(newZoom,cx,cy)=>{newZoom=clamp(newZoom,.5,6); const rect=img().getBoundingClientRect(); const ox=cx-(rect.left+rect.width/2); const oy=cy-(rect.top+rect.height/2); if(zoom!==0){x-=ox*(newZoom/zoom-1); y-=oy*(newZoom/zoom-1)} zoom=newZoom; apply()};
-  box.onclick=e=>{ if(e.target.closest('[data-gprev]')){go(-1);return} if(e.target.closest('[data-gnext]')){go(1);return} if(e.target===box||e.target.closest('.lightbox-close')) close(); if(e.target.closest('[data-zin]')) zoomAt(zoom+.25, innerWidth/2, innerHeight/2); if(e.target.closest('[data-zout]')) zoomAt(zoom-.25, innerWidth/2, innerHeight/2); if(e.target.closest('[data-zreset]')) reset(); };
-  box.addEventListener('wheel',e=>{e.preventDefault(); zoomAt(zoom*(e.deltaY<0?1.12:.88), e.clientX, e.clientY)},{passive:false});
-  box.addEventListener('dblclick',e=>{e.preventDefault(); clearTimeout(clickTimer); if(zoom>1.05) reset(); else zoomAt(2.5,e.clientX,e.clientY)});
-  box.addEventListener('pointerdown',e=>{ if(!e.target.closest('.lightbox-img')) return; e.preventDefault(); pointers.set(e.pointerId,{clientX:e.clientX,clientY:e.clientY}); if(pointers.size===1) tapStart={x:e.clientX,y:e.clientY,t:Date.now(),moved:false,swiped:false}; img().setPointerCapture?.(e.pointerId); if(pointers.size===1){dragStart={sx:e.clientX,sy:e.clientY,bx:x,by:y}; img().style.cursor='grabbing'} if(pointers.size===2){tapStart=null; let ps=[...pointers.values()]; pinchStart={d:dist(ps[0],ps[1]),z:zoom,bx:x,by:y,m:mid(ps[0],ps[1])}} },{passive:false});
-  box.addEventListener('pointermove',e=>{ if(!pointers.has(e.pointerId)) return; e.preventDefault(); pointers.set(e.pointerId,{clientX:e.clientX,clientY:e.clientY}); if(tapStart){const dx=e.clientX-tapStart.x,dy=e.clientY-tapStart.y; if(dx*dx+dy*dy>64) tapStart.moved=true;} if(pointers.size===2 && pinchStart){let ps=[...pointers.values()]; let m=mid(ps[0],ps[1]); zoom=clamp(pinchStart.z*dist(ps[0],ps[1])/Math.max(1,pinchStart.d),.5,6); x=pinchStart.bx+(m.clientX-pinchStart.m.clientX); y=pinchStart.by+(m.clientY-pinchStart.m.clientY); apply(); return} if(pointers.size===1 && dragStart && zoom>1){x=dragStart.bx+(e.clientX-dragStart.sx); y=dragStart.by+(e.clientY-dragStart.sy); apply()} },{passive:false});
-  const end=e=>{
-    const wasTap=tapStart && !tapStart.moved && (Date.now()-tapStart.t<300) && pointers.size===1;
-    if(tapStart && !tapStart.swiped && zoom<=1.05 && pointers.size===1 && gList.length>1){
-      const dx=e.clientX-tapStart.x, dy=e.clientY-tapStart.y; const adx=Math.abs(dx),ady=Math.abs(dy);
-      if(adx>80 && adx>ady*1.3){ tapStart.swiped=true; pointers.delete(e.pointerId); dragStart=null; go(dx<0?1:-1); tapStart=null; return; }
-      if(ady>80 && ady>adx*1.3){ tapStart.swiped=true; pointers.delete(e.pointerId); dragStart=null; go(dy<0?1:-1); tapStart=null; return; }
-    }
-    pointers.delete(e.pointerId); dragStart=null; pinchStart=null; img().style.cursor=zoom>1?'grab':'zoom-in'; if(wasTap && pointers.size===0 && zoom<=1.05){ clearTimeout(clickTimer); clickTimer=setTimeout(close,280); } tapStart=null;
+  const zoomAt=(newZoom,cx,cy)=>{newZoom=clamp(newZoom,.5,6); const im=img(); if(!im)return; const rect=im.getBoundingClientRect(); const ox=cx-(rect.left+rect.width/2); const oy=cy-(rect.top+rect.height/2); if(zoom!==0){x-=ox*(newZoom/zoom-1); y-=oy*(newZoom/zoom-1)} zoom=newZoom; applyZoom()};
+
+  box.onclick=e=>{
+    if(e.target.closest('[data-glocate]')){locateCurrent();return}
+    if(e.target.closest('[data-gprev]')){go(-1);return}
+    if(e.target.closest('[data-gnext]')){go(1);return}
+    if(e.target===box||e.target===viewport||e.target.closest('.lightbox-close')) close();
+    if(e.target.closest('[data-zin]')) zoomAt(zoom+.25, innerWidth/2, innerHeight/2);
+    if(e.target.closest('[data-zout]')) zoomAt(zoom-.25, innerWidth/2, innerHeight/2);
+    if(e.target.closest('[data-zreset]')) resetZoom();
   };
-  box.addEventListener('pointerup',end); box.addEventListener('pointercancel',end); box.addEventListener('pointerleave',e=>{ if(pointers.has(e.pointerId)) end(e) });
-  document.addEventListener('keydown',function esc(e){ if(e.key==='Escape'){close(); document.removeEventListener('keydown',esc)} else if(e.key==='ArrowLeft'){go(-1)} else if(e.key==='ArrowRight'){go(1)} });
-  document.body.appendChild(box); apply();
+
+  box.addEventListener('wheel',e=>{e.preventDefault(); zoomAt(zoom*(e.deltaY<0?1.12:.88), e.clientX, e.clientY)},{passive:false});
+  box.addEventListener('dblclick',e=>{e.preventDefault(); clearTimeout(clickTimer); if(zoom>1.05) resetZoom(); else zoomAt(2.5,e.clientX,e.clientY)});
+
+  box.addEventListener('pointerdown',e=>{
+    if(!e.target.closest('.lightbox-img') || isTransitioning) return;
+    e.preventDefault();
+    pointers.set(e.pointerId,{clientX:e.clientX,clientY:e.clientY});
+    if(pointers.size===1){
+      tapStart={x:e.clientX,y:e.clientY,t:Date.now(),moved:false};
+      isSwiping=false;
+      track.style.transition='none';
+    }
+    img()?.setPointerCapture?.(e.pointerId);
+    if(pointers.size===1 && zoom>1){
+      dragStart={sx:e.clientX,sy:e.clientY,bx:x,by:y};
+      const im=img(); if(im)im.style.cursor='grabbing';
+    }
+    if(pointers.size===2){
+      tapStart=null; isSwiping=false;
+      track.style.transform='translate3d(0, 0, 0)';
+      let ps=[...pointers.values()];
+      pinchStart={d:dist(ps[0],ps[1]),z:zoom,bx:x,by:y,m:mid(ps[0],ps[1])};
+    }
+  },{passive:false});
+
+  box.addEventListener('pointermove',e=>{
+    if(!pointers.has(e.pointerId) || isTransitioning) return;
+    e.preventDefault();
+    pointers.set(e.pointerId,{clientX:e.clientX,clientY:e.clientY});
+    
+    // 双指缩放
+    if(pointers.size===2 && pinchStart){
+      let ps=[...pointers.values()]; let m=mid(ps[0],ps[1]);
+      zoom=clamp(pinchStart.z*dist(ps[0],ps[1])/Math.max(1,pinchStart.d),.5,6);
+      x=pinchStart.bx+(m.clientX-pinchStart.m.clientX);
+      y=pinchStart.by+(m.clientY-pinchStart.m.clientY);
+      applyZoom(); return;
+    }
+
+    // 放大后单指拖拽图片自身
+    if(pointers.size===1 && zoom>1.05 && dragStart){
+      x=dragStart.bx+(e.clientX-dragStart.sx);
+      y=dragStart.by+(e.clientY-dragStart.sy);
+      applyZoom(); return;
+    }
+
+    // 1倍率下滑动整个轨道（100% 真实物理跟手）
+    if(pointers.size===1 && zoom<=1.05 && tapStart){
+      const dx=e.clientX-tapStart.x, dy=e.clientY-tapStart.y;
+      if(Math.abs(dx)>6 || Math.abs(dy)>6) tapStart.moved=true;
+
+      if(!isSwiping && Math.abs(dx)>8 && Math.abs(dx)>Math.abs(dy)*1.2 && gList.length>1){
+        isSwiping=true;
+      }
+
+      if(isSwiping){
+        let moveX=dx;
+        // 边界阻尼感
+        if((gPos===0 && dx>0) || (gPos===gList.length-1 && dx<0)){
+          moveX = dx * 0.35;
+        }
+        track.style.transform=`translate3d(${moveX}px, 0, 0)`;
+      }
+    }
+  },{passive:false});
+
+  const end=e=>{
+    if(!pointers.has(e.pointerId)) return;
+    pointers.delete(e.pointerId);
+    
+    if(isSwiping){
+      const dx=e.clientX-tapStart.x;
+      const dt=Date.now()-tapStart.t;
+      const velocity=Math.abs(dx)/Math.max(1,dt); // 速度像素/毫秒
+      
+      const shouldSwitch = (Math.abs(dx) > window.innerWidth * 0.18) || (velocity > 0.45 && Math.abs(dx) > 30);
+      const dir = dx < 0 ? 1 : -1;
+      const nextPos = gPos + dir;
+
+      if(shouldSwitch && nextPos >= 0 && nextPos < gList.length){
+        slideTo(nextPos, 420);
+      } else {
+        // 弹回当前
+        slideTo(gPos, 320);
+      }
+      tapStart=null; dragStart=null; pinchStart=null;
+      return;
+    }
+
+    const wasTap = tapStart && !tapStart.moved && (Date.now()-tapStart.t<300) && pointers.size===0;
+    dragStart=null; pinchStart=null;
+    const im=img(); if(im)im.style.cursor=zoom>1?'grab':'zoom-in';
+    if(wasTap && zoom<=1.05){
+      clearTimeout(clickTimer);
+      clickTimer=setTimeout(close,260);
+    }
+    tapStart=null;
+  };
+
+  box.addEventListener('pointerup',end);
+  box.addEventListener('pointercancel',end);
+  box.addEventListener('pointerleave',e=>{ if(pointers.has(e.pointerId)) end(e) });
+
+  document.addEventListener('keydown',function esc(e){
+    if(e.key==='Escape'){close(); document.removeEventListener('keydown',esc)}
+    else if(e.key==='ArrowLeft'){go(-1)}
+    else if(e.key==='ArrowRight'){go(1)}
+  });
+
+  (mount||document.body).appendChild(box); applyZoom();
 }
 function openVideoBox(src,poster=''){
   let old=document.querySelector('.video-lightbox'); old?.remove();

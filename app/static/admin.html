@@ -1,6 +1,6 @@
 <!doctype html>
 <html lang="zh-CN">
-<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>管理后台 - LAN Chat</title><link rel="stylesheet" href="/static/style.css?v=202608222010"><link rel="icon" href="/favicon.ico?v=202608222010"></head>
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>管理后台 - LAN Chat</title><link rel="stylesheet" href="/static/style.css?v=202608230325"><link rel="icon" href="/favicon.ico?v=202608230325"></head>
 <body class="admin-page">
 <div id="adminLogin" class="login-screen hidden"><div class="login-card glass"><div class="brand-badge">🛡️</div><h1>超级管理</h1><form id="adminLoginForm" class="stack"><input id="adminPassword" type="password" placeholder="超级密码"><button class="primary">进入后台</button></form><div id="adminError" class="error"></div></div></div>
 <div id="adminApp" class="page-shell hidden">
@@ -14,10 +14,10 @@
 </nav>
 <section class="admin-grid">
   <div class="panel glass wide-panel panel-off" id="infoPanelWrap"><div id="infoDetails" class="config-body info-body"></div></div>
-  <div class="panel glass config-panel"><details id="configDetails"><summary><span>配置</span><small>密码/标题/清空记录，点击展开</small></summary><div class="config-body"><label class="cfg-label">访问密码（留空不改）</label><input id="newAccess"><label class="cfg-label">超级密码（进入后台的密码，留空不改）</label><input id="newAdmin"><label class="cfg-label">站点标题</label><input id="newTitle"><label class="cfg-label">网盘页标题（默认：文件目录）</label><input id="newFilesTitle"><label class="cfg-label">后台快捷暗号（聊天框输入直接进后台）</label><input id="newMagic"><label class="cfg-label">文件上传大小限制(MB)</label><input id="newUploadLimit" type="number" min="0" placeholder="0或留空=不限制"><button id="saveSettings" class="primary">保存配置</button><button id="clearMessages" class="danger">清空聊天记录</button></div></details></div>
-  <div class="panel glass config-panel user-panel"><details id="userDetails"><summary><span>用户</span><small>用户资料/昵称/删除，点击展开</small></summary><div class="config-body user-body"><div class="message-toolbar"><input id="userQ" placeholder="按昵称或 IP 搜索"></div><div id="users"></div></div></details></div>
-  <div class="panel glass wide-panel config-panel file-panel"><details id="fileDetails"><summary><span>文件</span><small>搜索/类型/预览/删除，点击展开</small></summary><div class="config-body file-body"><div class="file-toolbar admin-file-toolbar"><input id="fileQ" placeholder="搜索文件名"><select id="fileKind"><option value="">全部类型</option><option value="image">图片</option><option value="video">视频</option><option value="audio">音频</option><option value="text">文本</option><option value="file">普通文件</option></select><button id="loadFiles" class="primary">刷新文件</button></div><div id="adminFiles" class="admin-files"></div></div></details></div>
-  <div class="panel glass wide-panel config-panel message-panel"><details id="messageDetails"><summary><span>消息</span><small>搜索/批量撤回/删除，默认展开</small></summary><div class="config-body message-body"><div class="message-toolbar"><input id="msgQ" placeholder="搜索消息"><button id="loadMessages" class="primary">刷新消息</button></div><div id="adminMessages"></div></div></details></div>
+  <div class="panel glass config-panel"><div id="configDetails" class="panel-body"><div class="panel-head"><span>⚙️ 配置</span><small>密码/标题/清空记录</small></div><div class="config-body"><label class="cfg-label">访问密码（留空不改）</label><input id="newAccess"><label class="cfg-label">超级密码（进入后台的密码，留空不改）</label><input id="newAdmin"><label class="cfg-label">站点标题</label><input id="newTitle"><label class="cfg-label">网盘页标题（默认：文件目录）</label><input id="newFilesTitle"><label class="cfg-label">后台快捷暗号（聊天框输入直接进后台）</label><input id="newMagic"><label class="cfg-label">文件上传大小限制(MB)</label><input id="newUploadLimit" type="number" min="0" placeholder="0或留空=不限制"><button id="saveSettings" class="primary">保存配置</button><button id="clearMessages" class="danger">清空聊天记录</button></div></div></div>
+  <div class="panel glass config-panel user-panel"><div id="userDetails" class="panel-body"><div class="panel-head"><span>👥 用户</span><small>用户资料/昵称/删除</small></div><div class="config-body user-body"><div class="message-toolbar"><input id="userQ" placeholder="按昵称或 IP 搜索"></div><div id="users"></div></div></div></div>
+  <div class="panel glass wide-panel config-panel file-panel"><div id="fileDetails" class="panel-body"><div class="panel-head"><span>📁 文件</span><small>搜索/类型/预览/删除</small></div><div class="config-body file-body"><div class="file-toolbar admin-file-toolbar"><input id="fileQ" placeholder="搜索文件名"><select id="fileKind"><option value="">全部类型</option><option value="image">图片</option><option value="video">视频</option><option value="audio">音频</option><option value="text">文本</option><option value="file">普通文件</option></select><button id="loadFiles" class="primary">刷新文件</button></div><div id="adminFiles" class="admin-files"></div></div></div></div>
+  <div class="panel glass wide-panel config-panel message-panel"><div id="messageDetails" class="panel-body"><div class="panel-head"><span>💬 消息</span><small>搜索/批量撤回/删除</small></div><div class="config-body message-body"><div class="message-toolbar"><input id="msgQ" placeholder="搜索消息内容或文件名"><select id="msgType"><option value="">全部类型</option><option value="normal">正常</option><option value="withdrawn">已撤回</option><option value="private">私人</option><option value="file">文件</option></select><button id="loadMessages" class="primary">搜索</button></div><div id="adminMessages"></div></div></div></div>
 </section>
 </div>
 
@@ -42,7 +42,7 @@
   function activate(id){
     tabs.forEach(t=>t.classList.toggle('on',t.dataset.tab===id));
     ['configDetails','userDetails','fileDetails','messageDetails'].forEach(pid=>{
-      const d=document.getElementById(pid); if(d) d.open=(pid===id);
+      const d=document.getElementById(pid);
       const panel=d?d.closest('.panel'):null; if(panel) panel.classList.toggle('panel-off',pid!==id);
     });
     const wrap=document.getElementById('infoPanelWrap');
