@@ -1,15 +1,23 @@
 <!doctype html>
 <html lang="zh-CN">
-<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>管理后台 - LAN Chat</title><link rel="stylesheet" href="/static/style.css?v=1787215979"><link rel="icon" href="/favicon.ico?v=1787215979"></head>
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>管理后台 - LAN Chat</title><link rel="stylesheet" href="/static/style.css?v=202608221940"><link rel="icon" href="/favicon.ico?v=202608221940"></head>
 <body class="admin-page">
 <div id="adminLogin" class="login-screen hidden"><div class="login-card glass"><div class="brand-badge">🛡️</div><h1>超级管理</h1><form id="adminLoginForm" class="stack"><input id="adminPassword" type="password" placeholder="超级密码"><button class="primary">进入后台</button></form><div id="adminError" class="error"></div></div></div>
 <div id="adminApp" class="page-shell hidden">
-<header class="topbar glass"><div class="title-wrap"><div class="logo">🛡️</div><div><h1>超级管理后台</h1><p>可修改任何信息</p></div></div><div class="top-actions"><a class="ghost" href="/">聊天</a><button id="logoutAdmin" class="ghost">退出</button></div></header>
+<header class="topbar glass"><div class="title-wrap"><div class="logo">🛡️</div><div><h1>管理后台</h1><p>/admin</p></div></div><div class="top-actions"><a class="ghost" href="/">聊天</a><button id="logoutAdmin" class="ghost">退出</button></div></header>
+<nav class="admin-tabs" id="adminTabs">
+<button type="button" class="atab on" data-tab="messageDetails">💬 消息</button>
+<button type="button" class="atab" data-tab="userDetails">👥 用户</button>
+<button type="button" class="atab" data-tab="fileDetails">📁 文件</button>
+<button type="button" class="atab" data-tab="configDetails">⚙️ 配置</button>
+<button type="button" class="atab" data-tab="infoDetails">ℹ️ 版本</button>
+</nav>
 <section class="admin-grid">
+  <div class="panel glass wide-panel panel-off" id="infoPanelWrap"><div id="infoDetails" class="config-body info-body"></div></div>
   <div class="panel glass config-panel"><details id="configDetails"><summary><span>配置</span><small>密码/标题/清空记录，点击展开</small></summary><div class="config-body"><label class="cfg-label">访问密码（留空不改）</label><input id="newAccess"><label class="cfg-label">超级密码（进入后台的密码，留空不改）</label><input id="newAdmin"><label class="cfg-label">站点标题</label><input id="newTitle"><label class="cfg-label">网盘页标题（默认：文件目录）</label><input id="newFilesTitle"><label class="cfg-label">后台快捷暗号（聊天框输入直接进后台）</label><input id="newMagic"><label class="cfg-label">文件上传大小限制(MB)</label><input id="newUploadLimit" type="number" min="0" placeholder="0或留空=不限制"><button id="saveSettings" class="primary">保存配置</button><button id="clearMessages" class="danger">清空聊天记录</button></div></details></div>
   <div class="panel glass config-panel user-panel"><details id="userDetails"><summary><span>用户</span><small>用户资料/昵称/删除，点击展开</small></summary><div class="config-body user-body"><div class="message-toolbar"><input id="userQ" placeholder="按昵称或 IP 搜索"></div><div id="users"></div></div></details></div>
   <div class="panel glass wide-panel config-panel file-panel"><details id="fileDetails"><summary><span>文件</span><small>搜索/类型/预览/删除，点击展开</small></summary><div class="config-body file-body"><div class="file-toolbar admin-file-toolbar"><input id="fileQ" placeholder="搜索文件名"><select id="fileKind"><option value="">全部类型</option><option value="image">图片</option><option value="video">视频</option><option value="audio">音频</option><option value="text">文本</option><option value="file">普通文件</option></select><button id="loadFiles" class="primary">刷新文件</button></div><div id="adminFiles" class="admin-files"></div></div></details></div>
-  <div class="panel glass wide-panel config-panel message-panel"><details id="messageDetails" open><summary><span>消息</span><small>搜索/批量撤回/删除，默认展开</small></summary><div class="config-body message-body"><div class="message-toolbar"><input id="msgQ" placeholder="搜索消息"><button id="loadMessages" class="primary">刷新消息</button></div><div id="adminMessages"></div></div></details></div>
+  <div class="panel glass wide-panel config-panel message-panel"><details id="messageDetails"><summary><span>消息</span><small>搜索/批量撤回/删除，默认展开</small></summary><div class="config-body message-body"><div class="message-toolbar"><input id="msgQ" placeholder="搜索消息"><button id="loadMessages" class="primary">刷新消息</button></div><div id="adminMessages"></div></div></details></div>
 </section>
 </div>
 
@@ -26,5 +34,32 @@
   </form>
 </dialog>
 <div id="toast" class="toast hidden"></div>
-<script src="/static/admin.js?v=1787215979"></script>
+<script>
+// Tab 式导航：点 tab 只展开对应面板，其余收起（details 原生开合，不干扰原 JS）
+(function(){
+  const tabs=document.querySelectorAll('#adminTabs [data-tab]');
+  let infoLoaded=false;
+  function activate(id){
+    tabs.forEach(t=>t.classList.toggle('on',t.dataset.tab===id));
+    ['configDetails','userDetails','fileDetails','messageDetails'].forEach(pid=>{
+      const d=document.getElementById(pid); if(d) d.open=(pid===id);
+      const panel=d?d.closest('.panel'):null; if(panel) panel.classList.toggle('panel-off',pid!==id);
+    });
+    const wrap=document.getElementById('infoPanelWrap');
+    const isInfo=(id==='infoDetails');
+    if(wrap) wrap.classList.toggle('panel-off',!isInfo);
+    if(isInfo&&!infoLoaded){
+      infoLoaded=true;
+      fetch('/api/admin/info').then(r=>r.text()).then(t=>{
+        const det=document.getElementById('infoDetails');
+        if(det) det.innerHTML=t;
+      }).catch(()=>{infoLoaded=false});
+    }
+    window.dispatchEvent(new Event('resize'));
+  }
+  tabs.forEach(t=>t.addEventListener('click',()=>activate(t.dataset.tab)));
+  activate('messageDetails');
+})();
+</script>
+<script src="/static/admin.js?v=__VER__"></script>
 </body></html>

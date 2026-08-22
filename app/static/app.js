@@ -19,7 +19,7 @@ let modalScrollY=0;
 function setModalLock(){ const open=!!document.querySelector('dialog[open]'); if(open){ if(!document.body.classList.contains('modal-open')) modalScrollY=window.scrollY||document.documentElement.scrollTop||0; document.documentElement.classList.add('modal-open'); document.body.classList.add('modal-open'); document.body.style.top=`-${modalScrollY}px`; } else { document.documentElement.classList.remove('modal-open'); document.body.classList.remove('modal-open'); document.body.style.top=''; if(modalScrollY) window.scrollTo(0,modalScrollY); modalScrollY=0; } }
 function showDialog(d){ if(!d) return; try{ if(d.open) d.close(); d.showModal(); }catch(e){ d.setAttribute('open',''); d.style.display='flex'; } setModalLock(); bindStableEditorScroll(d) }
 function closeDialog(d){ if(!d) return; try{ d.close(); }catch(e){ d.removeAttribute('open'); d.style.display='none'; } setModalLock() }
-function bindStableEditorScroll(root=document){ root.querySelectorAll?.('#textFileContent,#composeText').forEach(el=>{ if(el.dataset.stableScrollBound)return; el.dataset.stableScrollBound='1'; let lastX=0,lastY=0; el.addEventListener('touchstart',e=>{lastX=e.touches[0].clientX;lastY=e.touches[0].clientY},{passive:true}); el.addEventListener('touchmove',e=>{ const t=e.touches[0], x=t.clientX, y=t.clientY, dx=x-lastX, dy=y-lastY; lastX=x; lastY=y; const horizontal=Math.abs(dx)>Math.abs(dy); const atLeft=el.scrollLeft<=0, atRight=el.scrollLeft+el.clientWidth>=el.scrollWidth-1; const atTop=el.scrollTop<=0, atBottom=el.scrollTop+el.clientHeight>=el.scrollHeight-1; if(horizontal){ if((atLeft&&dx>0)||(atRight&&dx<0)) e.preventDefault(); e.stopPropagation(); return; } if((atTop&&dy>0)||(atBottom&&dy<0)) e.preventDefault(); e.stopPropagation(); },{passive:false}); el.addEventListener('wheel',e=>{ const horizontal=Math.abs(e.deltaX)>Math.abs(e.deltaY); const atLeft=el.scrollLeft<=0, atRight=el.scrollLeft+el.clientWidth>=el.scrollWidth-1; const atTop=el.scrollTop<=0, atBottom=el.scrollTop+el.clientHeight>=el.scrollHeight-1; if(horizontal){ if((atLeft&&e.deltaX<0)||(atRight&&e.deltaX>0)) e.preventDefault(); e.stopPropagation(); return; } if((atTop&&e.deltaY<0)||(atBottom&&e.deltaY>0)) e.preventDefault(); e.stopPropagation(); },{passive:false}); }); }
+function bindStableEditorScroll(root=document){ root.querySelectorAll?.('#textFileContent').forEach(el=>{ if(el.dataset.stableScrollBound)return; el.dataset.stableScrollBound='1'; let lastX=0,lastY=0; el.addEventListener('touchstart',e=>{lastX=e.touches[0].clientX;lastY=e.touches[0].clientY},{passive:true}); el.addEventListener('touchmove',e=>{ const t=e.touches[0], x=t.clientX, y=t.clientY, dx=x-lastX, dy=y-lastY; lastX=x; lastY=y; const horizontal=Math.abs(dx)>Math.abs(dy); const atLeft=el.scrollLeft<=0, atRight=el.scrollLeft+el.clientWidth>=el.scrollWidth-1; const atTop=el.scrollTop<=0, atBottom=el.scrollTop+el.clientHeight>=el.scrollHeight-1; if(horizontal){ if((atLeft&&dx>0)||(atRight&&dx<0)) e.preventDefault(); e.stopPropagation(); return; } if((atTop&&dy>0)||(atBottom&&dy<0)) e.preventDefault(); e.stopPropagation(); },{passive:false}); el.addEventListener('wheel',e=>{ const horizontal=Math.abs(e.deltaX)>Math.abs(e.deltaY); const atLeft=el.scrollLeft<=0, atRight=el.scrollLeft+el.clientWidth>=el.scrollWidth-1; const atTop=el.scrollTop<=0, atBottom=el.scrollTop+el.clientHeight>=el.scrollHeight-1; if(horizontal){ if((atLeft&&e.deltaX<0)||(atRight&&e.deltaX>0)) e.preventDefault(); e.stopPropagation(); return; } if((atTop&&e.deltaY<0)||(atBottom&&e.deltaY>0)) e.preventDefault(); e.stopPropagation(); },{passive:false}); }); }
 
 function avatar(u){ if(!u) return '<span class="avatar">?</span>'; if(u.avatar_type==='upload'&&u.avatar_url) return `<span class="avatar"><img src="${u.avatar_url}"></span>`; return `<span class="avatar">${escapeHtml(u.avatar_value||'🙂')}</span>` }
 function escapeHtml(s){return String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]))}
@@ -67,7 +67,7 @@ function renderMessage(m){
   const more=menuItems?`<button class="msg-more-btn" data-menu="${m.id}" title="更多" aria-label="更多">⋯</button>`:'';
   const menuRow=menuItems?`<div class="msg-menu" data-menu-for="${m.id}" hidden>${menuItems}</div>`:'';
   const actions=m._pending?'':(m.withdrawn?(mine?`<div class="actions"><button data-restore="${m.id}">恢复</button></div>`:''):`<div class="actions"><button data-copy="${m.id}">复制</button><button data-toggle="${m.id}">展开</button>${more}</div>${menuRow}`);
-  return `<article id="m-${m.id}" data-user-id="${escapeHtml(m.user_id)}" class="msg ${mine?'mine':''} ${m.private?'msg-private':''} ${m._pending?'_pending':''}"><button class="avatar-btn" data-user-info="${escapeHtml(m.user_id)}" title="查看用户资料">${avatar(m.user)}</button><div class="bubble"><div class="meta"><span class="name">${escapeHtml(m.user?.nickname||'未知')}</span><span class="msg-time">${m._pending?'发送中…':fmt(m.created_at)}</span>${m.edited?'<span>已编辑</span>':''}${lock}</div>${content}${actions}</div></article>`
+  return `<article id="m-${m.id}" data-user-id="${escapeHtml(m.user_id)}" class="msg ${mine?'mine':''} ${m.private?'msg-private':''} ${m._pending?'_pending':''}"><button class="avatar-btn" data-user-info="${escapeHtml(m.user_id)}" title="查看用户资料">${avatar(m.user)}</button><div class="bubble"><div class="meta"><span class="name">${escapeHtml(m.user?.nickname||'未知')}</span><span class="msg-time">${m._pending?'发送中…':fmt(m.edited&&m.updated_at?m.updated_at:m.created_at)}</span>${m.edited?'<span>已编辑</span>':''}${lock}</div>${content}${actions}</div></article>`
 }
 function nearBottom(){return messagesEl.scrollHeight - messagesEl.scrollTop - messagesEl.clientHeight < 120}
 function scrollBottomSoon(){const gen=autoScrollGeneration;const go=()=>{if(gen!==autoScrollGeneration||Date.now()-lastMessageScrollIntentAt<900)return;messagesEl.scrollTop=messagesEl.scrollHeight};go();requestAnimationFrame(go);[80,260,700,1200].forEach(t=>setTimeout(go,t))}
@@ -131,9 +131,6 @@ if(_chatFab){ _chatFab.onclick=()=>{ flickScroll(messagesEl, messagesEl.scrollHe
 async function init(){const c=await api('/api/config').catch(()=>null); if(!c)return; document.title=c.title||'LAN Chat'; $('#siteTitle').textContent=c.title; $('#loginTitle').textContent=c.title; if(c.authed){me=c.user; showApp(); updateModeUI(); await loadMessages({forceScroll:true}); connectWs()}else showLogin()}
 $('#loginForm').onsubmit=async e=>{e.preventDefault(); $('#loginError').textContent=''; try{const d=await api('/api/login',{method:'POST',body:JSON.stringify({password:$('#password').value})}); me=d.user; showApp(); updateModeUI(); await loadMessages({forceScroll:true}); connectWs()}catch(err){$('#loginError').textContent='密码不对'}}
 $('#sendBtn').onclick=send;
-$('#expandComposer').onclick=()=>{ $('#composeText').value=$('#messageInput').value; showDialog($('#composeDialog')) };
-$('#syncCompose').onclick=()=>{ $('#messageInput').value=$('#composeText').value; closeDialog($('#composeDialog')); autoGrowComposer() };
-$('#sendCompose').onclick=async()=>{ $('#messageInput').value=$('#composeText').value; closeDialog($('#composeDialog')); autoGrowComposer(); await send() };
 $('#messageInput').addEventListener('input', autoGrowComposer);
 $('#messageInput').addEventListener('focus', autoGrowComposer);
 $('#messageInput').addEventListener('blur', autoGrowComposer);
@@ -141,10 +138,40 @@ window.addEventListener('resize', ()=>{autoGrowComposer(); autoGrowTextarea($('#
 setTimeout(autoGrowComposer,0);
 function clearAttach(){attachQueue=[]; $('#fileInput').value=''; renderAttachPreview()}
 function renderAttachPreview(){const el=$('#attachPreview'); if(!el)return; if(!attachQueue.length){el.classList.add('hidden'); el.innerHTML=''; return} el.classList.remove('hidden'); const head=attachQueue.length===1?`将上传：${escapeHtml(attachQueue[0].name)} (${size(attachQueue[0].size)})`:`将上传 ${attachQueue.length} 个文件`; const list=attachQueue.length>1?`<div class="attach-list">${attachQueue.map((f,i)=>`<span class="attach-chip">${escapeHtml(f.name)} (${size(f.size)})<button type="button" class="attach-chip-x" data-attach-rm="${i}" title="移除">×</button></span>`).join('')}</div>`:''; el.innerHTML=`<div class="attach-head"><span>${head}</span><button type="button" class="attach-cancel" id="cancelAttach">清空</button></div>${list}`}
+/* ===== 📎 附件二级菜单：上传文件 / P2P 直传 ===== */
+const attachMenu=$('#attachMenu'), attachBtn=$('#attachBtn');
+$('#attachUpload').onclick=()=>{ attachMenu.hidden=true; $('#fileInput').click() };
+$('#attachP2p').onclick=e=>{ e.stopPropagation(); renderP2pUserList() };
+function closeAttachMenu(e){ if(attachMenu.hidden) return; if(!e.target.closest('.attach-wrap')) attachMenu.hidden=true }
+document.addEventListener('click', closeAttachMenu);
+attachBtn.onclick=e=>{ e.stopPropagation(); attachMenu.hidden=!attachMenu.hidden; const pop=document.getElementById('p2pUserPop'); if(pop) pop.remove(); };
+/* P2P：拉在线用户渲染到菜单下方弹层 */
+async function renderP2pUserList(){
+  let d;
+  try{ d=await api('/api/users/online') }catch(err){ toast('获取在线用户失败'); return }
+  const users=(d&&d.users)||[];
+  let box=document.getElementById('p2pUserPop');
+  if(box) box.remove();
+  if(!users.length){ toast('当前没有其他在线用户'); return }
+  box=document.createElement('div');
+  box.id='p2pUserPop'; box.className='attach-menu p2p-user-pop';
+  box.innerHTML='<div class="p2p-pop-title">选择在线用户</div>'+users.map(u=>`<button type="button" data-p2p-uid="${u.id}"><span class="p2p-ava">${u.avatar_type==='upload'&&u.avatar_url?`<img src="${u.avatar_url}" onerror="this.parentNode.textContent='🙂'">`:escapeHtml(u.avatar_value||'🙂')}</span><span class="p2p-nick">${escapeHtml(u.nickname||'用户')}</span></button>`).join('');
+  document.querySelector('.attach-wrap').appendChild(box);
+  box.onclick=e=>{
+    const b=e.target.closest('[data-p2p-uid]');
+    if(!b) return;
+    box.remove(); attachMenu.hidden=true;
+    p2pStartSend(b.dataset.p2pUid);
+  };
+  setTimeout(()=>{
+    const h=e=>{ if(!e.target.closest('#p2pUserPop')&&!e.target.closest('#attachBtn')){ box.remove(); document.removeEventListener('click',h) } };
+    document.addEventListener('click',h);
+  },0);
+}
 $('#fileInput').onchange=e=>{const fs=Array.from(e.target.files||[]); if(fs.length){attachQueue=attachQueue.concat(fs)} renderAttachPreview()}
 $('#attachPreview').onclick=e=>{const rm=e.target.closest('[data-attach-rm]'); if(rm){const i=+rm.dataset.attachRm; attachQueue.splice(i,1); renderAttachPreview(); return} if(e.target.closest('#cancelAttach')){ if(currentUpload) cancelUpload(); else clearAttach() }}
 function autoGrowTextarea(el){ if(!el) return; el.style.height='auto'; const max=Math.floor(window.innerHeight*0.72); el.style.height=Math.min(el.scrollHeight+8,max)+'px'; el.style.overflowY=el.scrollHeight>max?'auto':'hidden' }
-function autoGrowComposer(){ const el=$('#messageInput'); if(!el) return; const cs=getComputedStyle(el); const lh=parseFloat(cs.lineHeight)||22; const pad=(parseFloat(cs.paddingTop)||0)+(parseFloat(cs.paddingBottom)||0); const lines=el.value ? Math.min(5, Math.max(1, el.value.split('\n').length)) : 1; const h=Math.ceil(lh*lines+pad+2); el.style.height=h+'px'; el.style.overflowY=(el.value && el.value.split('\n').length>5)?'auto':'hidden' }
+function autoGrowComposer(){ const el=$('#messageInput'); if(!el) return; var savedTop=el.scrollTop; el.style.height='auto'; var maxH=Math.max(160, Math.floor((window.innerHeight||700)*0.7)); var h=Math.min(maxH, Math.max(44, el.scrollHeight)); el.style.height=h+'px'; el.style.overflowY=(el.scrollHeight>maxH+2)?'auto':'hidden'; el.scrollTop=savedTop }
 function fmtSpeed(n){return `${size(n)}/s`}
 function setUploadProgress(state){
   let el=$('#uploadProgress'); if(!el)return;
@@ -268,7 +295,7 @@ async function openUserInfo(uid){
     $('#infoAvatar').classList.toggle('zoomable-avatar', !!(u.avatar_type==='upload'&&u.avatar_url));
     $('#infoName').textContent=u.nickname||'未知用户'; $('#infoSub').textContent=`共 ${msgs.length} 条最近记录`;
     const countEl=$('#infoCount'); if(countEl) countEl.textContent=`${msgs.length} 条`;
-    $('#infoFields').innerHTML=`<div><span>IP</span><code>${escapeHtml(u.last_ip||'无')}</code></div><div><span>创建</span><code>${u.created_at?fmt(u.created_at):'无'}</code></div><div><span>活跃</span><code>${u.last_seen_at?fmt(u.last_seen_at):'无'}</code></div><div><span>头像</span><code>${escapeHtml(u.avatar_type||'')}</code></div>`;
+    const dOnly=t=>{try{const d=new Date(t);return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`}catch{return t||'无'}}; $('#infoFields').innerHTML=`<div class="ui-mini"><i>加入 ${dOnly(u.created_at)}</i></div><div class="ui-mini"><i>活跃 ${dOnly(u.last_seen_at)}</i></div>${u.last_ip&&u.last_ip!=='无'?`<div class="ui-mini"><i>IP ${escapeHtml(u.last_ip)}</i></div>`:''}`;
     const mineProfile=me&&u.id===me.id;
     const p2pBtn=$('#p2pSendBtn');
     if(p2pBtn){
@@ -281,7 +308,7 @@ async function openUserInfo(uid){
         const restore=mineProfile?`<button type="button" data-info-restore="${m.id}">恢复</button>`:'';
         return `<div class="info-msg info-msg-withdrawn"><div class="info-msg-time">${fmt(m.created_at)}</div><pre>（已撤回）${m.file?' '+escapeHtml('['+m.file.kind+'] '+m.file.name):''}</pre><div class="actions">${restore}</div></div>`;
       }
-      return `<div class="info-msg"><div class="info-msg-time">${fmt(m.created_at)}${m.edited?' · 已编辑':''}</div>${infoMedia(m)}<pre>${escapeHtml(compactContent(m))}</pre><div class="actions"><button type="button" data-info-copy="${m.id}">复制</button>${m.file&&m.file.kind==='text'?`<button type="button" data-text-file="${m.file.id}">${(me&&(m.file.user_id===me.id||m.user_id===me.id))?'编辑':'查看'}</button>`:''}${m.file?`<a href="${m.file.url}" download>下载</a>`:''}${mineProfile&&!m.withdrawn?`<button type="button" class="danger" data-info-withdraw="${m.id}">撤回</button>`:''}</div></div>`;
+      return `<div class="info-msg"><div class="info-msg-time">${fmt(m.edited&&m.updated_at?m.updated_at:m.created_at)}${m.edited?' · 已编辑':''}</div>${infoMedia(m)}<pre>${escapeHtml(compactContent(m))}</pre><div class="actions"><button type="button" data-info-copy="${m.id}">复制</button>${m.file&&m.file.kind==='text'?`<button type="button" data-text-file="${m.file.id}">${(me&&(m.file.user_id===me.id||m.user_id===me.id))?'编辑':'查看'}</button>`:''}${m.file?`<a href="${m.file.url}" download>下载</a>`:''}${mineProfile&&!m.withdrawn?`<button type="button" class="danger" data-info-withdraw="${m.id}">撤回</button>`:''}</div></div>`;
     }).join('')||'<div class="empty-note">暂无聊天记录</div>';
     const uiDlg=$('#userInfoDialog'); if(uiDlg) uiDlg.dataset.uid=uid;
     showDialog(uiDlg);
@@ -503,9 +530,8 @@ $('#calGrid')&&($('#calGrid').onclick=e=>{ e.stopPropagation(); const b=e.target
 });
 $('#calClear')&&($('#calClear').onclick=e=>{e.stopPropagation();calRange={start:null,end:null}; renderCal(); updateTimeFields();});
 $('#calDone')&&($('#calDone').onclick=e=>{e.stopPropagation(); if(calRange.start&&!calRange.end) calRange.end=calRange.start; closeCal(); updateTimeFields(); });
-function updateTimeFields(){ $('#timeStartVal').textContent=calRange.start?ymd(calRange.start):'选择日期'; $('#timeEndVal').textContent=calRange.end?ymd(calRange.end):'选择日期'; }
-$('#timeStartBtn')&&($('#timeStartBtn').onclick=e=>{e.stopPropagation();openCal()});
-$('#timeEndBtn')&&($('#timeEndBtn').onclick=e=>{e.stopPropagation();openCal()});
+function updateTimeFields(){ const v=!calRange.start?'点此打开日历':(calRange.end&&calRange.end.getTime()!==calRange.start.getTime())?`${ymd(calRange.start)} → ${ymd(calRange.end)}`:ymd(calRange.start); $('#timeRangeVal').textContent=v; }
+$('#timeRangeBtn')&&($('#timeRangeBtn').onclick=e=>{e.stopPropagation();openCal()});
 // 点日历外部关闭
 document.addEventListener('click',e=>{ const pop=$('#calPop'); if(pop&&!pop.classList.contains('hidden')&&!e.target.closest('.cal-pop-inner')&&!e.target.closest('.time-field')) closeCal(); });
 // 快捷按钮

@@ -537,3 +537,466 @@ mark.kw-hit{background:linear-gradient(180deg,#fff3a0,#ffe14d);color:#5a4500;bor
 .lightbox-counter{position:fixed;top:16px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,.42);color:#fff;font-size:14px;font-weight:600;padding:5px 14px;border-radius:999px;backdrop-filter:blur(6px);z-index:102;letter-spacing:.5px}
 .lightbox-counter span{color:#7fd4ff;font-weight:800}
 @media(max-width:720px){.lightbox-nav{width:42px;height:42px;font-size:24px;background:rgba(255,255,255,.12)}.lightbox-nav.prev{left:8px}.lightbox-nav.next{right:8px}}
+
+/* ===== 输入框胶囊样式（抄自 llama.cpp 官方 Web UI ChatForm）===== */
+/* 外层胶囊：muted/60 半透明底 + 细边框 + blur(12px) + 小阴影；聚焦时边框加深、阴影上浮 */
+.composer{
+  border-radius:2rem;
+  background:rgba(240,243,250,.66)!important;
+  backdrop-filter:blur(12px);
+  -webkit-backdrop-filter:blur(12px);
+  border:1px solid var(--line);
+  box-shadow:0 1px 3px rgba(19,32,51,.08),0 1px 2px -1px rgba(19,32,51,.05);
+  transition:box-shadow .2s ease,border-color .2s ease;
+}
+.composer:focus-within{
+  border-color:rgba(102,119,153,.5);
+  box-shadow:0 4px 10px -2px rgba(43,68,120,.16),0 2px 6px -2px rgba(43,68,120,.1);
+}
+@media(min-width:721px){.composer{border-radius:1.5rem}}
+/* 内层 textarea 变透明融入胶囊，去掉双框感（llama-ui 是 bg-transparent border-0 p-0）*/
+.composer textarea#messageInput{
+  background:transparent!important;
+  border-color:transparent!important;
+  padding-left:6px;padding-right:6px;
+}
+.composer textarea#messageInput:focus{border-color:transparent!important;box-shadow:none!important}
+
+/* ===== 输入框按钮布局（抄自 llama.cpp ChatFormActions：ghost 图标钮 + 渐变发送键）===== */
+/* 按钮去掉独立白底方块感：透明底、无边框，仅保留点击区域；间距收紧 */
+.composer-actions{gap:4px}
+.composer .file-btn{
+  background:transparent!important;
+  border-color:transparent!important;
+  box-shadow:none!important;
+  border-radius:999px;
+  transition:background .15s ease;
+}
+.composer .file-btn:active{background:rgba(102,119,153,.14)}
+/* 文字钮（网盘/我的/文本）也去底色，弱化为次级操作 */
+.composer .composer-actions .ghost{
+  background:transparent!important;
+  border-color:transparent!important;
+  box-shadow:none!important;
+  color:var(--muted);
+  font-size:13.5px;
+  border-radius:999px;
+  padding:9px 10px;
+  transition:background .15s ease,color .15s ease;
+}
+.composer .composer-actions .ghost:active{background:rgba(102,119,153,.14)}
+/* 发送键：渐变胶囊（对应 llama-ui 的 primary 钮），保持醒目 */
+.composer #sendBtn{
+  border-radius:999px;
+  padding:9px 16px;
+  font-weight:600;
+  min-width:0;
+  flex:0 0 auto;
+}
+/* 移动端：取消等宽 grid 拉伸，改自然宽度排列（图标+文字钮紧凑靠左，发送键靠右）*/
+@media(max-width:720px){
+  .composer-actions{display:flex;justify-content:space-between;align-items:center;gap:2px}
+  .bottom-nav,.composer-actions .ghost,.composer-actions .primary{padding:9px 10px;font-size:13.5px}
+  .composer .file-btn{width:40px;height:40px}
+  /* 胶囊内边距收紧 */
+  .composer{padding:8px}
+}
+
+/* ===== 高度自适应修正：上限=屏幕70%，由 JS 动态控制；粘贴长文不再被裁 ===== */
+.composer textarea#messageInput{
+  max-height:70vh!important;
+  resize:none;
+}
+@supports(height:100dvh){.composer textarea#messageInput{max-height:70dvh!important}}
+
+/* ===== 胶囊阴影修正：原 .glass 大扩散实体阴影不跟圆角，改为贴合圆角的柔和投影 ===== */
+.composer{
+  box-shadow:0 2px 10px -2px rgba(43,68,120,.14),0 1px 3px rgba(19,32,51,.06)!important;
+}
+.composer:focus-within{
+  box-shadow:0 6px 16px -4px rgba(43,68,120,.2),0 2px 6px -2px rgba(43,68,120,.08)!important;
+}
+/* 防子元素直角溢出：只约束内层元素，绝不碰胶囊自身圆角 */
+.composer textarea#messageInput{border-radius:12px}
+.composer #sendBtn,.composer .file-btn,.composer .composer-actions .ghost{border-radius:999px}
+
+/* ===== 胶囊圆角保险：确保外层始终是圆的 ===== */
+.composer{border-radius:2rem!important}
+@media(min-width:721px){.composer{border-radius:1.5rem!important}}
+
+/* ===== 输入框真悬浮：满屏铺底 + 消息流从底部穿过（抄 llama-ui ChatScreen 布局）===== */
+/* composer 脱离 grid 文档流，fixed 铺满底部整行 */
+.app{grid-template-rows:1fr 0!important}
+.composer{
+  position:fixed!important;
+  left:10px;right:10px;bottom:calc(8px + env(safe-area-inset-bottom,0px));
+  width:auto;max-width:none;
+  margin:0;
+  z-index:30;
+}
+@media(min-width:721px){
+  .composer{left:auto;right:auto;width:min(1160px,calc(100vw - 28px));margin-left:auto;margin-right:auto;left:50%;transform:translateX(-50%)}
+}
+/* 消息流滚动区垫高：最后的内容可以滚进输入框下方，形成穿透效果 */
+.messages{padding-bottom:132px!important}
+@media(max-width:720px){.messages{padding-bottom:120px!important}}
+
+/* ===== 一键到底悬浮球：钉在输入框上方，不再重叠 ===== */
+.scroll-bottom-fab{
+  bottom:calc(136px + env(safe-area-inset-bottom,0px))!important;
+  z-index:32!important;
+}
+@media(min-width:721px){.scroll-bottom-fab{bottom:140px!important}}
+
+/* ===== 网盘/我的按钮靠右集中：发送键左侧成组 ===== */
+.composer .composer-actions .ghost.bottom-nav{margin-left:auto}
+.composer .composer-actions .ghost.bottom-nav + .bottom-nav{margin-left:0}
+
+/* ===== 底部穿透过渡自然化：消除"实体长条"感 ===== */
+.messages{
+  padding-bottom:128px!important;
+  -webkit-mask-image:linear-gradient(to bottom,#000 calc(100% - 120px),rgba(0,0,0,.35) calc(100% - 60px),rgba(0,0,0,.12) 100%);
+  mask-image:linear-gradient(to bottom,#000 calc(100% - 120px),rgba(0,0,0,.35) calc(100% - 60px),rgba(0,0,0,.12) 100%);
+}
+
+/* ===== 网盘页底部工具栏：与聊天室悬浮输入框统一（毛玻璃胶囊+柔和阴影）===== */
+/* 外壳：与 .composer 同款半透明底+blur(12px)+贴合圆角小投影（替换原 0 18px 60px 大实体阴影）*/
+.files-page .file-bottom-bar{
+  border-radius:2rem!important;
+  background:rgba(240,243,250,.66)!important;
+  backdrop-filter:blur(12px);
+  -webkit-backdrop-filter:blur(12px);
+  border:1px solid var(--line)!important;
+  box-shadow:0 2px 10px -2px rgba(43,68,120,.14),0 1px 3px rgba(19,32,51,.06)!important;
+}
+@media(min-width:721px){.files-page .file-bottom-bar{border-radius:1.5rem!important}}
+/* 内部控件融入胶囊：去白底方块感，改 ghost 胶囊钮 */
+.files-page .file-bottom-bar input,
+.files-page .file-bottom-bar select{
+  background:rgba(255,255,255,.5)!important;
+  border-color:transparent!important;
+  box-shadow:none!important;
+  border-radius:999px!important;
+  transition:background .15s ease,border-color .2s ease;
+}
+.files-page .file-bottom-bar input:focus,
+.files-page .file-bottom-bar select:focus{border-color:rgba(102,119,153,.45)!important;box-shadow:none!important}
+.files-page .file-bottom-bar button,
+.files-page .file-bottom-bar a{
+  background:transparent!important;
+  border-color:transparent!important;
+  box-shadow:none!important;
+  color:var(--muted);
+  border-radius:999px!important;
+  transition:background .15s ease,color .15s ease;
+}
+.files-page .file-bottom-bar button:active,
+.files-page .file-bottom-bar a:active{background:rgba(102,119,153,.14)}
+/* 刷新钮：渐变胶囊主操作（对应聊天室发送键），放最右 */
+.files-page .file-bottom-bar #refresh{
+  background:linear-gradient(135deg,var(--primary),var(--primary2))!important;
+  color:#fff!important;font-weight:600;border-radius:999px!important;
+  padding:8px 16px;min-width:0;flex:0 0 auto;
+}
+/* 搜索框占满左侧，类型选择+刷新靠右成组 */
+@media(max-width:720px){
+  .files-page .file-bottom-bar{grid-template-columns:minmax(0,1fr) auto auto!important;padding:8px;gap:6px}
+  .files-page .file-bottom-bar input{min-width:0}
+}
+/* 网盘页一键到底球：同样钉到工具栏上方，z-index 高于工具栏 */
+.files-page ~ .scroll-bottom-fab,.files-page .scroll-bottom-fab,#filesScrollBottom{
+  bottom:calc(120px + env(safe-area-inset-bottom,0px))!important;
+  z-index:32!important;
+}
+/* 网盘页列表底部垫高过渡自然化 */
+.files-page .file-list{-webkit-mask-image:linear-gradient(to bottom,#000 calc(100% - 110px),rgba(0,0,0,.65) calc(100% - 55px),rgba(0,0,0,.35) 100%);mask-image:linear-gradient(to bottom,#000 calc(100% - 110px),rgba(0,0,0,.65) calc(100% - 55px),rgba(0,0,0,.35) 100%)}
+
+/* ===== 网盘底栏移动端单行布局修正：搜索框+类型+刷新+聊天 一行放下 ===== */
+@media(max-width:720px){
+  .files-page .file-bottom-bar{
+    grid-template-columns:minmax(0,1fr) auto auto auto!important;
+    align-items:center;
+  }
+  .files-page .file-bottom-bar input#q{width:100%;min-width:0;padding:7px 12px!important}
+  .files-page .file-bottom-bar select#kind{max-width:96px;font-size:12.5px}
+  .files-page .file-bottom-bar #refresh{padding:8px 13px;font-size:13px}
+  .files-page .file-bottom-bar a.ghost{padding:8px 10px;font-size:13px;white-space:nowrap}
+}
+/* 悬浮球和工具栏留出间隙，不贴死 */
+#filesScrollBottom{bottom:calc(128px + env(safe-area-inset-bottom,0px))!important}
+
+/* ===== 网盘底栏：搜索钮（纯文字渐变胶囊，位于最右主操作位）===== */
+.files-page .file-bottom-bar #refresh{padding:8px 15px!important;font-weight:600}
+
+/* ===== 📎 附件二级菜单（上传文件 / P2P 直传）===== */
+.attach-wrap{position:relative;display:inline-flex}
+.attach-menu{
+  position:absolute;bottom:calc(100% + 8px);left:0;z-index:40;
+  display:flex;flex-direction:column;min-width:132px;
+  background:rgba(255,255,255,.96);backdrop-filter:blur(14px);
+  border:1px solid var(--line);border-radius:16px;padding:6px;
+  box-shadow:0 6px 20px -4px rgba(43,68,120,.22);
+}
+.attach-menu[hidden]{display:none!important}
+.attach-menu button{
+  border:0;background:transparent;border-radius:10px;
+  padding:10px 12px;font:inherit;font-size:14px;text-align:left;
+  display:flex;align-items:center;gap:7px;cursor:pointer;color:var(--text);
+  white-space:nowrap;
+}
+.attach-menu button:hover{background:rgba(102,119,153,.12)}
+.attach-menu button:active{background:rgba(102,119,153,.2)}
+/* P2P 在线用户弹层 */
+.p2p-user-pop{left:0;min-width:150px;max-height:min(46vh,320px);overflow-y:auto;bottom:auto;top:0}
+
+/* P2P 用户弹层：与二级菜单一致从按钮上方展开 */
+.p2p-user-pop{top:auto!important;bottom:calc(100% + 8px)!important;left:0!important}
+
+/* ===== 附件二级菜单：逃出悬浮窗裁剪，浮在输入框之上 ===== */
+/* 根因：.composer 有 overflow:hidden（防长文件名撑宽的历史规则）+ 自成 stacking context，
+   子元素菜单被裁剪且压在窗体下。方案：菜单 fixed 定位脱离裁剪上下文，z-index 拉高。 */
+.composer{overflow:visible!important}
+.composer .attach-wrap{overflow:visible!important}
+.attach-menu{z-index:60!important}
+.p2p-user-pop{z-index:61!important}
+
+/* ===== P2P 用户弹层：屏幕右侧滑出面板，头像+昵称 ===== */
+.p2p-user-pop{
+  position:fixed!important;
+  right:10px!important;left:auto!important;
+  bottom:auto!important;
+  top:auto!important;
+  max-height:min(52vh,420px)!important;
+  min-width:172px;max-width:min(240px,calc(100vw - 20px));
+}
+.p2p-pop-title{font-size:12.5px;font-weight:700;color:var(--muted);padding:6px 10px 4px;text-align:left}
+.p2p-user-pop button{width:100%;padding:8px 10px!important}
+.p2p-ava{display:inline-flex;width:30px;height:30px;border-radius:50%;overflow:hidden;background:rgba(102,119,153,.12);align-items:center;justify-content:center;flex:0 0 auto}
+.p2p-ava img{width:100%;height:100%;object-fit:cover}
+.p2p-nick{flex:1 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-align:left}
+
+/* P2P 弹层底部对齐输入框上方，向上展开 */
+.p2p-user-pop{
+  bottom:calc(120px + env(safe-area-inset-bottom,0px))!important;
+  top:auto!important;
+}
+
+
+/* 搜索日历弹层修复：cal-cell 是 button，被全局 button{min-width:44px} 撑爆 7 列网格导致最右列溢出白底（2026.08.22） */
+.cal-grid .cal-cell{min-width:0!important;width:auto!important;padding:0!important}
+.cal-weekdays span{min-width:0}
+.cal-pop-inner{max-width:calc(100vw - 24px)}
+
+
+/* 搜索时间筛选：单框日期范围（2026.08.22 双框合一） */
+.time-range-row .time-field{width:100%;flex:0 0 auto}
+
+
+/* ===== 文件信息弹窗 & 用户信息弹窗 UI 优化（2026.08.22）===== */
+/* 文件信息：预览媒体区 */
+.fi-new .file-info-scroll{display:flex;flex-direction:column;gap:12px}
+.fi-media{position:relative;width:100%;border-radius:16px;overflow:hidden;background:#f1f5fb;border:1px solid var(--line);display:flex;align-items:center;justify-content:center}
+.fi-media img{width:100%;height:auto;max-height:44vh;object-fit:contain;display:block;background:#f8fafc}
+.fi-play{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:52px;height:52px;border-radius:50%;background:rgba(15,23,42,.55);color:#fff;display:flex;align-items:center;justify-content:center;font-size:20px;padding-left:4px;backdrop-filter:blur(4px)}
+.fi-audio{font-size:56px;padding:26px 0}
+/* 文件信息：元信息 chips */
+.fi-new .fi-chips{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.fi-chip{background:rgba(248,250,252,.9);border:1px solid rgba(102,119,153,.16);border-radius:14px;padding:9px 12px;display:flex;flex-direction:column;gap:2px;min-width:0}
+.fi-chip span{font-size:11px;color:var(--muted);flex:0 0 auto}
+.fi-chip b{font-size:14px;font-weight:700;color:var(--text);word-break:break-word;overflow-wrap:anywhere;line-height:1.35}
+@media(max-width:720px){.fi-new .fi-chips{grid-template-columns:repeat(2,minmax(0,1fr))}.fi-chip{padding:8px 10px}.fi-chip b{font-size:13px}}
+/* 文件信息：技术详情折叠区 */
+.fi-tech{border:1px solid rgba(102,119,153,.16);border-radius:14px;background:rgba(248,250,252,.6);overflow:hidden}
+.fi-tech summary{cursor:pointer;padding:10px 14px;font-size:13px;font-weight:600;color:#4d5f7a;user-select:none;list-style:none;display:flex;align-items:center;gap:6px}
+.fi-tech summary::-webkit-details-marker{display:none}
+.fi-tech summary::before{content:'▸';transition:transform .15s ease;font-size:11px;color:#7c8aa5}
+.fi-tech[open] summary::before{transform:rotate(90deg)}
+.fi-tech .file-info-grid{margin:0;border:0;border-top:1px solid var(--line);border-radius:0;background:transparent}
+/* 用户信息：资料 chips */
+.ui-chip{background:rgba(248,250,252,.9);border:1px solid rgba(102,119,153,.16);border-radius:14px;padding:8px 11px;display:flex;flex-direction:column;gap:2px;min-width:0}
+.ui-chip span{font-size:11px;color:var(--muted);flex:0 0 auto}
+.ui-chip b{font-size:13px;font-weight:700;color:var(--text);word-break:break-word;overflow-wrap:anywhere;line-height:1.35}
+
+
+/* 文件详情弹窗：去掉每项信息的边框小卡片，改为无边框+细分隔线列表（2026.08.22 用户要求） */
+.file-info-grid .info-row,.file-info-grid>div{
+  border:0!important;
+  border-bottom:1px solid rgba(102,119,153,.12)!important;
+  border-radius:0!important;
+  background:transparent!important;
+  padding:9px 2px!important;
+}
+.file-info-grid .info-row:last-child,.file-info-grid>div:last-child{border-bottom:0!important}
+
+.file-info-grid{
+  border:0!important;
+  border-radius:0!important;
+  background:transparent!important;
+  padding:2px 0 0!important;
+}
+
+.file-info-grid code{
+  background:transparent!important;
+  border:0!important;
+  border-radius:0!important;
+  padding:0!important;
+}
+
+
+/* 「我的资料」弹窗底部 GitHub 作者卡（2026.08.22） */
+.author-card{margin:14px 2px 2px;display:flex;align-items:center;gap:11px;padding:12px 14px;border-radius:18px;background:linear-gradient(135deg,rgba(79,124,255,.10),rgba(124,77,255,.10));border:1px solid rgba(79,124,255,.16)}
+.author-ava{width:40px;height:40px;flex:0 0 40px;border-radius:50%;background:linear-gradient(135deg,#4f7cff,#7c4dff);color:#fff;font-size:14px;font-weight:800;display:flex;align-items:center;justify-content:center;letter-spacing:.03em}
+.author-txt{flex:1 1 auto;min-width:0;display:flex;flex-direction:column;gap:1px}
+.author-txt b{font-size:14px;color:#1c2b45}
+.author-txt span{font-size:12px;color:#69758a}
+.author-link{flex:0 0 auto;display:inline-flex;align-items:center;gap:6px;padding:8px 13px;border-radius:999px;border:1px solid rgba(102,119,153,.25);background:rgba(255,255,255,.85);color:#24292f;font-weight:700;font-size:12.5px;text-decoration:none}
+.author-link:hover{background:#24292f;color:#fff;border-color:#24292f}
+
+
+/* ===== 管理后台 Tab 式 UI（2026.08.22）：顶部 tab 导航 + 单面板展示 ===== */
+.admin-tabs{display:flex;gap:6px;padding:6px;border-radius:18px;background:rgba(255,255,255,.72);border:1px solid rgba(102,119,153,.20);box-shadow:0 10px 26px rgba(50,70,110,.08);overflow-x:auto;-webkit-overflow-scrolling:touch}
+.admin-tabs .atab{flex:1 1 0;min-width:max-content;padding:10px 16px;border-radius:12px;border:0;background:transparent;color:#4d5f7a;font-weight:700;font-size:14px;font-family:inherit;cursor:pointer;white-space:nowrap;text-decoration:none;display:inline-flex;align-items:center;justify-content:center;gap:5px;transition:background .15s ease,color .15s ease;-webkit-tap-highlight-color:transparent;appearance:none}
+.admin-tabs .atab:hover{background:rgba(79,124,255,.08);color:#244fc9}
+.admin-tabs .atab.on{background:linear-gradient(135deg,#4f7cff,#7c4dff);color:#fff;box-shadow:0 8px 22px rgba(79,124,255,.28)}
+.admin-tabs .atab-link{border:0}
+@media(max-width:720px){
+  .admin-tabs{border-radius:14px;gap:4px;padding:5px}
+  .admin-tabs .atab{padding:9px 12px;font-size:13px;border-radius:10px}
+}
+
+
+/* Tab 模式下非活动面板隐藏（单面板展示） */
+.admin-page .panel.panel-off{display:none!important}
+/* 面板 summary 在 tab 模式下变成纯标题条（去掉「展开/收起」角标） */
+.admin-page .panel:not(.panel-off)>details>summary::after{content:none!important}
+
+
+/* ===== 后台「版本」tab 内嵌信息面板样式（与 /i 同款）===== */
+.info-panel .muted{color:#69758a;font-size:13px;margin:2px 0 12px}
+.admin-page .info-panel .row{display:flex;justify-content:space-between;align-items:baseline;gap:16px;padding:9px 2px;border-bottom:1px dashed rgba(102,119,153,.2)}
+.admin-page .info-panel .row:last-child{border-bottom:0}
+.admin-page .info-panel .k{font-weight:600;color:#5a6b85;font-size:13px;flex:0 0 auto}
+.admin-page .info-panel .v{font-weight:700;color:#1c2b45;text-align:right;word-break:break-all;font-size:13.5px}
+.admin-page .info-panel .v a{color:#244fc9;text-decoration:none}
+.admin-page .info-panel h2.sec{font-size:14.5px;margin:18px 0 10px;color:#33415c;display:flex;align-items:center;gap:7px}
+.admin-page .info-panel ul.feat{margin:0;padding-left:4px;list-style:none;display:grid;gap:6px}
+.admin-page .info-panel ul.feat li{font-size:13px;color:#2b3a55;line-height:1.5}
+.admin-page .info-panel .drow{display:flex;gap:12px;align-items:baseline;padding:6px 2px;border-bottom:1px dashed rgba(102,119,153,.16)}
+.admin-page .info-panel .drow:last-child{border-bottom:0}
+.admin-page .info-panel .drow code{flex:0 0 auto;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12px;font-weight:700;color:#4f46e5;background:rgba(79,124,255,.08);border-radius:8px;padding:2px 8px}
+.admin-page .info-panel .drow span{font-size:12.5px;color:#5a6b85;min-width:0}
+@media(max-width:720px){
+  .admin-page .info-panel .row{flex-direction:column;align-items:flex-start;gap:2px}
+  .admin-page .info-panel .v{text-align:left}
+  .admin-page .info-panel .drow{flex-direction:column;gap:3px}
+}
+
+
+/* ===== 用户信息弹窗重构（2026.08.22）：渐变 hero 头部 + 资料 chips ===== */
+.user-info-card.ui-new{padding:0!important;gap:0!important;overflow:hidden!important}
+/* hero 头部：蓝紫渐变底，头像浮出 */
+.ui-hero{position:relative;display:flex;align-items:flex-end;gap:14px;padding:22px 18px 14px!important;background:linear-gradient(135deg,#4f7cff,#7c4dff)!important;border-radius:26px 26px 0 0}
+.ui-hero .user-info-title{flex:1 1 auto;min-width:0;padding-bottom:2px}
+.ui-hero .user-info-title h2{margin:0;color:#fff!important;font-size:19px;text-shadow:0 1px 8px rgba(20,30,60,.25)}
+.ui-hero .user-info-title p{margin:3px 0 0;color:rgba(255,255,255,.85)!important;font-size:12.5px}
+.ui-ava{width:64px;height:64px;flex:0 0 64px;border-radius:50%!important;background:rgba(255,255,255,.92)!important;border:3px solid rgba(255,255,255,.65);font-size:34px;display:flex;align-items:center;justify-content:center;box-shadow:0 10px 26px rgba(15,23,42,.28);overflow:hidden}
+.ui-ava img{width:100%;height:100%;object-fit:cover;border-radius:50%}
+.ui-scroll{display:flex!important;flex-direction:column;gap:12px;padding:14px 16px!important;max-height:min(52dvh,480px)}
+/* 资料 chips：两列小卡 */
+.ui-chips-row{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin:0!important;padding:0!important;background:transparent!important;border:0!important;max-height:none!important;overflow:visible!important;display:grid!important}
+.ui-chip{background:rgba(248,250,252,.92);border:1px solid rgba(102,119,153,.16);border-radius:14px;padding:8px 11px;display:flex;flex-direction:column;gap:2px;min-width:0}
+.ui-chip span{font-size:11px;color:#69758a}
+.ui-chip b{font-size:12.5px;font-weight:700;color:#1c2b45;word-break:break-word;overflow-wrap:anywhere;line-height:1.35}
+/* 聊天记录标题条 */
+.ui-new .info-history-head{display:flex;align-items:center;justify-content:space-between;margin:2px 0 0}
+@media(max-width:720px){
+  .ui-hero{padding:18px 14px 12px!important;border-radius:22px 22px 0 0}
+  .ui-ava{width:56px;height:56px;flex-basis:56px;font-size:30px}
+  .ui-hero .user-info-title h2{font-size:17px}
+  .ui-chips-row{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .ui-chip{padding:7px 9px}
+}
+
+
+/* ===== 用户信息弹窗修正 v2（2026.08.22）：高度贴内容 + 头像加大 + 记录卡弱化 ===== */
+/* 高度：不再强制撑满全屏，贴合内容 + 上限 */
+.user-info-card.ui-new{width:min(560px,calc(100vw - 20px))!important;height:auto!important;max-height:calc(100dvh - 32px)!important;grid-template-rows:auto minmax(0,1fr) auto!important}
+.ui-new .ui-scroll{max-height:none!important;flex:0 1 auto;overflow-y:auto!important}
+@media(max-width:720px){
+  .user-info-card.ui-new{width:calc(100vw - 16px)!important;max-height:calc(100dvh - 24px)!important}
+}
+/* hero：更饱满 */
+.ui-hero{padding:26px 20px 16px!important;gap:16px}
+.ui-ava{width:72px;height:72px;flex-basis:72px;font-size:38px;border-width:3px}
+.ui-hero .user-info-title h2{font-size:21px!important}
+.ui-hero .user-info-title p{font-size:13px!important}
+/* 聊天记录卡片：去双层边框感 */
+.ui-new .info-messages{display:flex;flex-direction:column;gap:8px}
+.ui-new .info-msg{border:1px solid rgba(102,119,153,.12)!important;border-radius:14px!important;background:#fff!important;box-shadow:none!important;margin:0!important}
+.ui-new .info-msg pre{margin:6px 0 0;font-size:13px;line-height:1.55;white-space:pre-wrap;word-break:break-word}
+.ui-new .info-msg .actions{margin-top:7px;display:flex;gap:6px;justify-content:flex-end}
+.ui-new .info-history-head h3{margin:0;font-size:15px}
+/* 底部操作栏：贴底分隔线 */
+.ui-new .dialog-actions{border-top:1px solid rgba(102,119,153,.14)!important;padding:12px 16px calc(12px + env(safe-area-inset-bottom,0px))!important;margin:0!important;background:linear-gradient(180deg,rgba(248,251,255,.8),#fff)}
+
+
+/* ===== 用户信息弹窗 v3（2026.08.22）：记录区最大化 ===== */
+/* 整体：hero 紧凑一行化 + 记录区吃掉全部剩余高度 */
+.user-info-card.ui-new{display:flex!important;flex-direction:column!important;width:min(560px,calc(100vw - 20px))!important;height:min(86dvh,780px)!important;max-height:calc(100dvh - 24px)!important;padding:0!important;gap:0!important}
+@media(max-width:720px){.user-info-card.ui-new{width:calc(100vw - 16px)!important;height:min(88dvh,820px)!important}}
+/* hero：头像+昵称+资料竖排小字，单卡紧凑 */
+.ui-hero{display:flex!important;align-items:center;gap:13px!important;padding:16px 16px 12px!important}
+.ui-ava{width:58px;height:58px;flex-basis:58px;font-size:30px;border-width:2.5px}
+.ui-hero .user-info-title{flex:1 1 auto;min-width:0}
+.ui-hero .user-info-title h2{font-size:18px!important;margin:0}
+.ui-hero .user-info-title p{font-size:11.5px!important;margin:2px 0 0}
+/* 三项资料：hero 右侧/下方竖排迷你行 */
+.ui-chips-col{flex:0 0 auto;display:flex;flex-direction:column;gap:3px;min-width:0}
+.ui-mini i{font-style:normal;font-size:10.5px;color:rgba(255,255,255,.92);background:rgba(255,255,255,.16);border-radius:999px;padding:2px 9px;display:inline-block;max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+/* 记录标题条：贴在滚动区上方 */
+.ui-hist-head{display:flex!important;align-items:center;justify-content:space-between;padding:10px 14px 6px!important;margin:0!important;border-top:1px solid rgba(102,119,153,.12)}
+.ui-hist-head h3{margin:0;font-size:14px}
+.ui-hist-head .info-count{font-size:11px}
+/* 滚动区：吃掉全部剩余空间，内边距收窄给内容让位 */
+.ui-scroll{flex:1 1 auto!important;min-height:0!important;overflow-y:auto!important;-webkit-overflow-scrolling:touch;padding:4px 10px 10px!important;display:block!important}
+.ui-new .info-messages{padding:0!important;margin:0!important;display:flex;flex-direction:column;gap:7px}
+/* 记录卡片：更薄的内边距 */
+.ui-new .info-msg{padding:9px 11px!important}
+.ui-new .info-msg pre{font-size:13px;line-height:1.5}
+.ui-new .info-msg .actions{margin-top:6px}
+/* 底部按钮：小号 */
+.ui-actions{padding:8px 12px calc(8px + env(safe-area-inset-bottom,0px))!important;gap:8px!important;justify-content:flex-end}
+.btn-sm{padding:6px 13px!important;font-size:12.5px!important;min-height:0!important;border-radius:999px!important}
+
+
+/* ===== 用户资料弹窗 v4：按钮可见 + 记录卡去线框 ===== */
+/* 卡片：严格纵向 flex，hero/标题/actions 固定高，scroll 吃剩余 */
+.user-info-card.ui-new{display:flex!important;flex-direction:column!important;overflow:hidden!important}
+.ui-new .ui-hero,.ui-new .ui-hist-head,.ui-new .dialog-actions{flex:0 0 auto!important}
+/* 按钮行：确保永远贴在卡片底部可见 */
+.ui-actions{flex:0 0 auto!important;display:flex!important;visibility:visible!important;position:relative!important;z-index:5}
+/* 2. 记录卡片：去边框线，改纯底色区分 */
+.ui-new .info-msg{border:0!important;border-radius:14px!important;background:#f1f5fb!important;box-shadow:none!important}
+.ui-new .info-msg.info-msg-withdrawn{background:#f8f3ec!important}
+.ui-new .info-msg pre{margin:5px 0 0}
+/* 复制等小按钮也收敛 */
+.ui-new .info-msg .actions button{padding:5px 11px!important;font-size:12px!important;border-radius:999px!important;min-height:0!important}
+
+
+/* ===== 用户资料弹窗 v5：按钮钉底可见（终极修正）===== */
+/* 历史样式 user-info-card>.dialog-actions button{width:100%} 导致按钮占满整行撑高 */
+.user-info-card.ui-new>.dialog-actions{flex:0 0 auto!important;margin:0!important;padding:9px 12px calc(9px + env(safe-area-inset-bottom,0px))!important;display:flex!important;justify-content:flex-end!important}
+.user-info-card.ui-new>.dialog-actions .btn-sm{width:auto!important;flex:0 0 auto!important}
+/* 滚动区必须可收缩，保证 hero+hist+actions 都在视口内 */
+.ui-new .ui-scroll{min-height:0!important;overflow-y:auto!important}
+
+
+/* ===== v6：ID 级优先级覆盖历史 grid 模板（真根因：grid-template-rows 五行模板错配）===== */
+#userInfoDialog .dialog-card.ui-new{display:flex!important;flex-direction:column!important;grid-template-rows:none!important;height:min(86dvh,780px)!important;max-height:calc(100dvh - 24px)!important;gap:0!important;padding:0!important;overflow:hidden!important;width:min(560px,calc(100vw - 20px))!important}
+@media(max-width:720px){#userInfoDialog .dialog-card.ui-new{width:calc(100vw - 16px)!important;height:min(88dvh,820px)!important}}
+#userInfoDialog .ui-new .ui-hero{flex:0 0 auto!important}
+#userInfoDialog .ui-new .ui-hist-head{flex:0 0 auto!important}
+#userInfoDialog .ui-new .ui-scroll{flex:1 1 auto!important;min-height:0!important;overflow-y:auto!important}
+#userInfoDialog .ui-new>.dialog-actions{flex:0 0 auto!important;margin:0!important;padding:9px 12px calc(9px + env(safe-area-inset-bottom,0px))!important;display:flex!important;justify-content:flex-end!important;background:#fff!important;border-top:1px solid rgba(102,119,153,.14)}
+#userInfoDialog .ui-new>.dialog-actions .btn-sm{width:auto!important;flex:0 0 auto!important}
+

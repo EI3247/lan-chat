@@ -39,9 +39,24 @@ DB_PATH = DATA_DIR / 'chat.db'
 SITE_TITLE = os.getenv('LANCHAT_SITE_TITLE', 'LAN Chat')
 WELCOME = os.getenv('LANCHAT_WELCOME', '局域网聊天室')
 FILES_TITLE = os.getenv('LANCHAT_FILES_TITLE', '文件目录')
-APP_VERSION = "1787215979"
-APP_UPDATED_AT = "1787215979"
+APP_VERSION = "202608221940"
+APP_UPDATED_AT = "202608221940"
 APP_CHANGELOG = [
+    '网盘页列表底部渐隐 mask 减弱（最低不透明度 0.10→0.35），滑到底时最后一张卡片文字不再过暗。',
+    '后台头部标题「超级管理后台」改为「管理后台」，副标题改为路径提示文字 /admin。',
+    '修复用户资料弹窗底部按钮被挤出视口不可见的问题（按钮行固定卡片底部）；聊天记录卡片去掉描边线框改纯底色，观感更干净。',
+    '用户资料弹窗布局优化：三项资料（加入/活跃/IP，时间只到日）移到渐变头部头像旁，底部按钮缩小，聊天记录滚动区扩展到最大可用空间便于查阅。',
+    '修正两处 UI：① 后台版本 tab 去掉折叠条和双层面板嵌套，与其他 tab 面板结构一致；② 用户资料弹窗高度改贴合内容（原强制全屏导致底部大片空白）、头像加大到 72px、聊天记录卡片去双边框感。',
+    '删除 /i 独立路径（版本信息已内嵌后台 tab）。用户资料弹窗重构：蓝紫渐变 hero 头部+大头像、资料改双列小卡片（去掉无意义的头像类型字段）、聊天记录独立滚动区。',
+    '管理后台「版本」改为内嵌 tab 面板（/api/admin/info 动态加载，与 /i 同源数据），移除头部「版本」跳转按钮和 tab 栏外链。',
+    '管理后台改版为 Tab 式 UI：顶部胶囊 tab 导航（消息/用户/文件/配置/版本），点切只显示当前面板，替代原四卡片折叠布局；「版本」tab 直跳 /i 信息页。',
+    '/i 信息页补充「项目功能」清单和「目录结构」说明表：每个目录的用途一目了然。',
+    '/i 信息页重构：全部字段改为运行时动态获取（不再写死路径），新增 GitHub 作者与仓库链接，顶部加「聊天 / 管理后台」跳转按钮（头部样式与管理后台一致）。',
+    '文件信息弹窗与个人名片页 UI 重构：文件弹窗新增大图预览区+元信息卡片+「技术详情」折叠区（MIME/ID/URL 收起不再刷屏）；名片页资料改小卡片并去掉无意义字段。后台 /i 信息页精简为纯版本行式布局（移除变更列表与 AI 提示）。',
+    '搜索「按时间」的日历入口合并为单个日期范围选择框：点击直接打开同一个日历，先点开始再点结束，不再显示两个容易误导的开始/结束框。',
+    '修复搜索日历弹层最右列日期溢出白色背景（button 全局 min-width 撑爆 7 列网格）。',
+    '消息编辑保存后，气泡和名片页时间显示为最新编辑时间（原固定显示发送时间）。',
+    '公开⇄私人切换后消息/文件视为重新发送：时间更新并跳到聊天流最新位置。',
     '修复竖屏视频在网盘页和个人资料页显示不全：网盘页视频缩略图改用 cover 填满预览区，资料页媒体容器改为高度自适应，竖屏视频不再被压成细条。',
     'P2P 文件直传（WebRTC）：点别人头像可发起直传，对方在线时弹窗确认后通过 WebRTC DataChannel 直接传输文件，不经服务器存储。含在线检测、进度条、流控。最大 5GB。',
     '个人名片页新增撤回按钮：查看自己的消息时可直接在名片页撤回，不必回到聊天流操作。',
@@ -749,6 +764,61 @@ async def broadcast_msg(msg: dict, kind: str = 'message'):
     else:
         await hub.broadcast({'type':kind,'message':msg})
 
+@app.get('/api/admin/info', response_class=HTMLResponse)
+def admin_info_fragment(request: Request):
+    # 管理后台「版本」tab 内嵌内容：与 /i 同源数据，HTML 片段
+    import platform, socket
+    try:
+        hostname = socket.gethostname()
+    except Exception:
+        hostname = '未知'
+    info_rows = [
+        ('版本', APP_VERSION),
+        ('更新时间', APP_UPDATED_AT),
+        ('站点标题', get_setting('site_title', SITE_TITLE)),
+        ('运行主机', hostname),
+        ('Python', platform.python_version()),
+        ('数据目录', str(DATA_DIR)),
+        ('当前访问IP', client_ip(request) or '未知'),
+        ('作者', 'EI3247'),
+        ('开源仓库', 'https://github.com/EI3247/lan-chat'),
+    ]
+    features = [
+        '💬 局域网聊天室：文字/图片/视频/音频/文件消息，WebSocket 实时推送',
+        '📁 网盘（文件目录）：公开/私人双模式，分片上传大文件，视频自动生成预览图',
+        '📡 WebRTC P2P 文件直传：点对点直传不经服务器，支持多文件队列，最大 5GB',
+        '🔑 身份码体系：6 位身份码即凭证，可设密码加固，换设备无缝恢复身份',
+        '🛡️ 管理后台：用户/消息/文件管理、配置、暗号进入，支持分页与搜索',
+        '⚡ 快捷分享目录：往 quick_drop 扔文件即出现在网盘，无需上传流程',
+        '🔍 搜索：关键词同时搜消息和文件名，按日期范围查看历史记录',
+    ]
+    feat_html = ''.join(f'<li>{html.escape(x)}</li>' for x in features)
+    dirs = [
+        ('app/', '后端源码：main.py 单文件 FastAPI + static/ 前端'),
+        ('app/static/', '前端页面：index(聊天)/files(网盘)/admin(后台) + style.css'),
+        ('data/', '持久化数据（挂载到容器 /data）'),
+        ('data/chat.db', 'SQLite 数据库：用户/消息/文件/设置'),
+        ('data/uploads/', '上传的文件存储（UUID 重命名）'),
+        ('data/quick_drop/', '快捷分享：扔进去即显示，不写数据库'),
+        ('data/previews/', '图片/视频预览图缓存'),
+        ('data/avatars/', '用户上传的头像'),
+        ('data/tmp_uploads/', '分片上传临时目录'),
+        ('docker-compose.yml', '容器编排：bridge 模式，端口 1111:1111'),
+        ('AI_CONTEXT.md', '项目维护文档（约定与踩坑记录）'),
+    ]
+    dirs_html = ''.join(f'<div class="drow"><code>{html.escape(d)}</code><span>{html.escape(desc)}</span></div>' for d, desc in dirs)
+    def _render_v(v):
+        s = str(v)
+        if s.startswith('http://') or s.startswith('https://'):
+            return f'<a href="{html.escape(s)}" target="_blank" rel="noopener">{html.escape(s)}</a>'
+        return html.escape(s)
+    rows_html = ''.join(f'<div class="row"><span class="k">{html.escape(str(k))}</span><span class="v">{_render_v(v)}</span></div>' for k, v in info_rows)
+    return (f'<div class="info-panel">'
+            f'<p class="muted">版本 {html.escape(APP_VERSION)} · 更新于 {html.escape(APP_UPDATED_AT)}</p>'
+            f'<div>{rows_html}</div>'
+            f'<h2 class="sec">✨ 项目功能</h2><ul class="feat">{feat_html}</ul>'
+            f'<h2 class="sec">📂 目录结构</h2>{dirs_html}</div>')
+
 @app.get('/', response_class=HTMLResponse)
 def index():
     page=(Path(__file__).parent/'static/index.html').read_text(encoding='utf-8')
@@ -944,6 +1014,21 @@ def user_profile(uid: str, request: Request, limit: int = 300):
         },
         'messages': [message_public(r) for r in rows]
     }
+
+@app.get('/api/users/online')
+def users_online(request: Request):
+    """在线用户列表（P2P 直传选择器用）。"""
+    me = require_user(request); con = db()
+    rows = con.execute('SELECT * FROM users ORDER BY created_at ASC').fetchall()
+    con.close()
+    out = []
+    for u in rows:
+        if u['id'] == me['id']:
+            continue
+        if not hub.is_online(u['id']):
+            continue
+        out.append(user_public(u))
+    return {'users': out}
 
 @app.get('/api/presets')
 def presets(request: Request): require_user(request); return {'avatars': PRESET_AVATARS}
@@ -1178,7 +1263,9 @@ async def change_visibility(mid: str, request: Request):
     con=db(); row=con.execute('SELECT * FROM messages WHERE id=? AND deleted=0',(mid,)).fetchone()
     if not row: con.close(); raise HTTPException(404)
     if row['user_id'] != u['id']: con.close(); raise HTTPException(403)
-    con.execute('UPDATE messages SET private=?, updated_at=? WHERE id=?',(want_private,now_iso(),mid)); con.commit(); row=con.execute('SELECT * FROM messages WHERE id=?',(mid,)).fetchone(); con.close()
+    # 公私切换视为重新发送：刷新 created_at，消息在时间轴上跳到最新位置（文件跟随消息）
+    _now=now_iso()
+    con.execute('UPDATE messages SET private=?, created_at=?, updated_at=? WHERE id=?',(want_private,_now,_now,mid)); con.commit(); row=con.execute('SELECT * FROM messages WHERE id=?',(mid,)).fetchone(); con.close()
     msg=message_public(row)
     # 先让所有在线客户端从当前视图移除这条（离开了原视图），再按新归属添加。
     await hub.broadcast({'type':'remove','id':mid})
