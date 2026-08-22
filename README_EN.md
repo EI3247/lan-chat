@@ -1,120 +1,84 @@
-# LAN Chat — LAN Chatroom & File Sharing
+# LAN Chat (Local Area Network Instant Messaging & Private Cloud Drive)
 
 [中文说明文档](README.md) | **English**
 
-> **Author**: [@EI3247](https://github.com/EI3247)
-> **Repository**: [https://github.com/EI3247/lan-chat](https://github.com/EI3247/lan-chat)
+> **Author**: [@EI3247](https://github.com/EI3247)  
+> **Repository**: [https://github.com/EI3247/lan-chat](https://github.com/EI3247/lan-chat)  
 > **License**: [MIT License](LICENSE)
 
-A self-hosted chatroom and file-sharing service that runs on your local network. It ships as a single container with no external dependencies, and all data stays on your own machine. Built for home NAS setups, small teams, and labs where internal communication shouldn't sit on a public server.
+A lightweight instant messaging, private file drive, and WebRTC P2P high-speed file transfer system designed for local network environments.  
+Built on a single-file **FastAPI + SQLite** backend architecture and **vanilla HTML5 / CSS3 / JavaScript** on the frontend, requiring zero Node.js build pipelines. Fully supports one-click Docker container deployment as well as bare-metal host execution. Ideal for home NAS, studios, small teams, and internal lab collaborations.
 
-The stack is FastAPI + SQLite + vanilla JavaScript: one `main.py` on the backend, no build step on the frontend. Messages are pushed over WebSocket; large files travel over a WebRTC peer-to-peer channel.
-
----
-
-## Features
-
-### Identity and login
-
-You pick a nickname and an avatar to enter the chatroom — there is no registration flow. On first entry the system assigns you a 6-character identity code.
-
-That code is your credential:
-
-- You can change it to any custom string in the settings panel, including Chinese characters.
-- An optional personal password can be layered on top of it.
-- Switching devices, browsers, or clearing cookies? Enter the identity code (+ password) on the login page and your old identity comes back — avatar, private messages, and personal files included.
-- If you already sent messages from the new device before recovering, those get merged into the recovered account automatically.
-
-### Messaging
-
-- Group chat over WebSocket: text, images, video, audio, and arbitrary file types.
-- Private messages between two users, visually distinguished in the chat stream.
-- Sent messages can be edited, withdrawn, and restored; admins can restore withdrawn ones from the back end.
-- Public/private visibility toggles at any time; toggling treats the message as re-sent and moves it to the top of the timeline.
-- Long text collapses automatically.
-- Clicking an avatar opens a profile card with recent messages, where you can start a P2P transfer or a private thread.
-
-### Files and the drive page
-
-`/files` is a dedicated drive view backed by the same storage as chat:
-
-- Public mode shows everything shared in the room; private mode shows only yours.
-- A "My uploads" filter narrows the list to files uploaded by the current account.
-- Your own files can be withdrawn or switched between public/private right from the drive page.
-- Images and videos get automatic thumbnails in a masonry layout — two columns on mobile, up to five on wide screens.
-- Plain-text files open in an online viewer; your own uploads can be edited inline and saved.
-- Large uploads are chunked, so a page refresh doesn't lose progress.
-
-### Quick Drop
-
-A convenience for NAS owners: drop any file into `data/quick_drop/` on the host and it shows up on the drive page after a refresh. No upload flow, no database records. These entries are labeled "Quick share", downloadable but not withdrawable. The directory is scanned on request — no polling jobs.
-
-### WebRTC peer-to-peer transfer
-
-For large files between two devices:
-
-- Click "Direct transfer" on someone's profile card. After they accept, a WebRTC data channel carries the file straight from sender disk to receiver disk.
-- The server stores nothing and spends no upload bandwidth on the transfer.
-- Multiple files per session: the receiver confirms once, then files stream sequentially over a single connection.
-- Up to 5GB per file, 64KB chunks, with flow control and live progress on both ends.
-- Either side can cancel while waiting or mid-transfer.
-- Offline recipients can't be offered transfers — presence is checked first.
-
-One honest limitation: no STUN/TURN servers are configured, so this only works inside the same LAN. Through a public tunnel (e.g. frp) signaling connects but the data channel won't form; fall back to regular upload in that case.
-
-### Admin panel
-
-The admin entry is deliberately hidden: no buttons anywhere in the UI. The administrator types the super password into the chat input and sends it; verification lands directly on `/admin`.
-
-From the panel you can:
-
-- Browse and search all users (nickname, identity code, source IP, last active time), paginated.
-- Search, edit, delete, or restore any message.
-- Preview, download, or delete any uploaded file.
-- Change site title, welcome message, access password, super password, and the upload size limit (0 means unlimited).
-- Check the version page for runtime info (version, hostname, Python version).
-
-Two password layers exist: the access password gates the chatroom itself, the super password gates `/admin`. Changing the super password updates both verification paths (form login and the chat-command jump) at once.
-
-### Compatibility
-
-The UI adapts to desktop and mobile browsers. Older lightweight WebViews (X-Browser on Android, in-app browsers) are covered by explicit fallbacks: `<dialog>` degrades gracefully, optional chaining has been replaced with ES5-safe equivalents, and WebSocket auth falls back to a token query parameter when the WebView refuses to send cookies.
+> 💡 **Access Tip**: If paired with router DNS rewrite (e.g. AdGuard Home, OpenWrt, dnsmasq) to map the LAN IP to a custom short domain (such as `http://chat.lan:1111` or `http://l.com:1111`), all phones, PCs, and tablets across the network can access the service directly without remembering dynamic IPs.
 
 ---
 
-## Common tasks
+## ✨ Core Capabilities & Features
 
-| Goal | How |
-|---|---|
-| Recover an account | Enter the original identity code (+ password) on the login page |
-| Send a file to someone | Use "Direct transfer" on their card if online; otherwise post it to the room |
-| Index files already on the NAS | Copy them into `data/quick_drop/` |
-| Reach the admin panel | Type the super password into the chat box and send |
-| Cap upload sizes | Set the limit in admin config |
+### 1. Account System & Identity Code Mechanism (`id_code`)
+* **Frictionless Onboarding**: Access instantly by providing a nickname and choosing an avatar—no registration required.
+* **Unique Identity Code**: Every user is assigned a unique 6-character identity code upon entry. Users can customize this code at any time in the settings panel (supports text and Chinese characters).
+* **Optional Password Protection**: The identity code acts as the recovery credential by default; users can set an optional password for added security.
+* **Cross-Device & Cross-Browser Account Recovery**: When switching devices, changing browsers, or clearing cookies, enter the "Identity Code (+ Password)" on the login screen to immediately inherit the existing account data (avatar, private messages, personal files).
+* **Seamless Session Merging**: Any messages or files sent during a temporary guest session are automatically merged and mounted into the target account upon recovery, preventing data loss.
+
+### 2. Instant Messaging System
+* **High-Concurrency Real-Time Chat**: Full-duplex broadcast and targeted messaging powered by a WebSocket connection pool, supporting text, emojis, rich media (images/video/audio), and arbitrary file attachments.
+* **Message Lifecycle Controls**:
+  * **Inline Editing**: Edit sent messages in place.
+  * **Withdraw & Restore**: Users can withdraw their own messages and restore them; administrators possess full message restoration and audit capabilities in the admin panel.
+  * **Dynamic Visibility Switching**: Toggle public messages to private (or vice versa); switching refreshes timestamps and moves messages to the top of the timeline.
+* **Adaptive Typography & Input**: Long messages collapse automatically with a gradient expander; the composer features a floating glass capsule design with auto-expanding height based on content.
+* **User Profile & Presence Detection**: Click an avatar to open a profile card showing join date, activity history, source IP, and recent messages, with real-time online status detection.
+
+### 3. WebRTC P2P High-Speed File Transfer
+* **Direct Point-to-Point Streaming**: Establishes a direct WebRTC DataChannel between two LAN devices—data flows strictly between clients, **consuming zero server disk space or bandwidth**.
+* **Single-Connection Multi-File Queue**: Select multiple files in a single batch. The receiver confirms once, and the system automatically streams all files sequentially over a single connection.
+* **Flow Control & Cancellation**: Supports up to 5GB per file with 64KB chunking and flow control (buffer monitoring). Live progress is synced to both ends, and transfers can be cancelled at any point.
+* **Local Network Scope**: Operates on a direct LAN architecture without STUN/TURN; public tunneling may fall back to standard uploads if NAT traversal fails.
+
+### 4. Dual-Mode File Drive & Quick Drop
+* **Dual-Mode File Drive (`/files`)**:
+  * **Public Drive**: Centralized view of all public files shared across the chatroom.
+  * **Private Drive**: Switch to private scope to manage personal files exclusively.
+  * **"My Uploads" Filter**: Quickly filter all uploads belonging to the current user.
+  * **File Actions**: Toggle private/public status, withdraw files, download, or copy direct links.
+  * **Online Text Editing**: Preview plain-text files directly in the browser; owners can edit and save changes online.
+* **Quick Drop (Zero-DB Directory Sharing)**:
+  * Drop files directly into the `./data/quick_drop/` directory on the host or NAS.
+  * The drive view **scans and displays files in real-time** without going through the upload flow or writing to SQLite, tagged as "Quick share".
+* **Responsive Masonry Layout**:
+  * Adapts from 2 columns on mobile devices up to 5 columns on ultra-wide screens.
+  * Automatic thumbnail generation for video and images, with fine-tuned bottom mask transparency ensuring footer card readability.
+
+### 5. Hidden Admin Access & Management (`/admin`)
+* **Command-Triggered Admin Entry**: No administrative buttons or links are exposed in the interface. The administrator types the super admin password into the chat box and sends it to authenticate and jump directly to `/admin`.
+* **Full Data Auditing & Configuration**:
+  * **User Management**: Server-side paginated search for user details, source IPs, and activity logs.
+  * **Message Auditing**: Search complete message history with editing, deletion, and recovery controls.
+  * **File Management**: Centralized file browser with previews, deletion, and type filters.
+  * **Hot Configuration**: Dynamically update site title, welcome message, access password, super admin password, and upload size limit (MB, 0 for unlimited).
+  * **System Diagnostics**: Tab-based overview of runtime parameters (Python version, host, data paths).
+
+### 6. Broad Compatibility & Lightweight WebView Fallbacks
+* Responsive design covering mobile, tablet, and desktop viewports.
+* **WebView Fallbacks**: Explicit multi-layer compatibility handling for older Android kernels, X-Browser, and embedded WebViews:
+  * CSS/JS modal fallback for environments lacking native HTML5 `<dialog>` support.
+  * Removal of modern ES optional chaining syntax to avoid parse errors on legacy engines.
+  * `/api/ws-token` token-based fallback authentication for WebViews that omit cookies during WebSocket handshakes.
 
 ---
 
-## Known limitations
+## 🚀 Quick Start & Deployment
 
-Stated plainly:
-
-- P2P transfer is LAN-only, by design (see above).
-- Under Docker bridge networking the admin log sees the bridge IP, not each device's real LAN IP. Use the bare-metal deployment below if real-IP auditing matters to you.
-- No end-to-end encryption. Traffic is plaintext inside your network; don't expose this service to the internet.
-- SQLite suits small deployments (a few dozen users). Larger concurrency is untested.
-
----
-
-## 🚀 Deployment Methods
-
-LAN Chat supports both **Docker Container Deployment (Recommended)** and **Bare-Metal Native Execution (No Docker)**.
+LAN Chat supports both **Docker Compose Deployment (Recommended)** and **Bare-Metal Host Execution (No Docker Required)**.
 
 ### Method 1: Docker Compose (Recommended)
 
 ```bash
 docker compose up -d
 ```
-The service will be accessible at `http://<your-lan-ip>:1111`.
+The service will be accessible by default at `http://<your-lan-ip>:1111`.
 
 #### `docker-compose.yml` Configuration
 ```yaml
@@ -148,6 +112,7 @@ Ideal for lightweight Linux/macOS/Windows machines, Raspberry Pi, or embedded de
 
 #### 1. Linux / macOS
 ```bash
+# Grant executable permissions and launch (the script automatically sets up a virtual environment and dependencies)
 chmod +x start.sh
 ./start.sh
 ```
@@ -155,21 +120,21 @@ chmod +x start.sh
 #### 2. Windows
 Double-click **`run.bat`** in the repository root.
 
-> 💡 **Bare-Metal Advantages**: Transparently logs real local IP addresses (e.g. `192.168.1.x`) for IP auditing. Optional `ffmpeg` installation for video thumbnail previews.
+> 💡 **Bare-Metal Advantage**: Directly exposes authentic client LAN IP addresses (e.g. `192.168.1.x`) for transparent IP auditing in the admin panel. Optional `ffmpeg` installation enables video thumbnail generation.
 
 ---
 
 ## 📁 Directory Structure & Data Persistence
 
-All user data is persistently saved in the mounted `./data` directory:
+All runtime data is persisted in the `./data` directory:
 
 ```
 data/
 ├── chat.db          # SQLite database (Users, messages, file metadata)
-├── uploads/         # User uploaded files
+├── uploads/         # User uploaded file storage
 ├── quick_drop/      # Quick drop directory (dropped files display directly without DB records)
 ├── previews/        # Auto-generated image and video thumbnails
-├── avatars/         # User custom avatars
+├── avatars/         # Custom user avatars
 └── tmp_uploads/     # Temporary chunk upload buffer
 ```
 
@@ -179,7 +144,7 @@ data/
 
 - **Backend**: Python 3.11, FastAPI, Uvicorn, SQLite3, ffmpeg
 - **Frontend**: Vanilla HTML5 / CSS3 / JavaScript (Zero build step, lightweight & fast)
-- **Protocol**: WebSocket (Hub Pool) + WebRTC (RTCDataChannel)
+- **Protocol**: WebSocket (Hub Connection Pool) + WebRTC (RTCDataChannel)
 
 ---
 
