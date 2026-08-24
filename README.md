@@ -13,6 +13,36 @@
 
 ---
 
+## 📸 界面预览
+
+### 💬 即时通讯
+
+![聊天主界面](docs/shot-chat.jpg)
+
+**发送消息实时动图演示：**
+
+![发送消息演示](docs/demo-send.gif)
+
+### 🔍 全局搜索（关键词 + 按时间双模式）
+
+![全局搜索](docs/shot-search.jpg)
+
+### 📁 双模式网盘（公开 / 私人 + Quick Drop）
+
+![网盘页面](docs/shot-files.jpg)
+
+### 🛡️ 管理后台（暗号进入，消息/用户/文件/配置全量管理）
+
+![管理后台](docs/shot-admin.jpg)
+
+### 📱 移动端适配
+
+<div align="center">
+  <img src="docs/shot-mobile.jpg" width="320" alt="移动端">
+</div>
+
+---
+
 ## ✨ 核心能力与功能实现
 
 ### 1. 账号体系与身份码机制 (`id_code`)
