@@ -12,7 +12,7 @@ import hashlib
 import mimetypes
 import subprocess
 from pathlib import Path
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from typing import Optional, Any
 
 from fastapi import FastAPI, Request, Response, UploadFile, File, Form, WebSocket, WebSocketDisconnect, HTTPException
@@ -39,9 +39,10 @@ DB_PATH = DATA_DIR / 'chat.db'
 SITE_TITLE = os.getenv('LANCHAT_SITE_TITLE', 'LAN Chat')
 WELCOME = os.getenv('LANCHAT_WELCOME', '局域网聊天室')
 FILES_TITLE = os.getenv('LANCHAT_FILES_TITLE', '文件目录')
-APP_VERSION = "202608252335"
-APP_UPDATED_AT = "2026-08-25 23:35"
+APP_VERSION = "202608260047"
+APP_UPDATED_AT = "2026-08-26 00:47"
 APP_CHANGELOG = [
+    '新增消息引用回复功能（支持无缝定位与高亮）、后台消息置顶公告控制、媒体倍速播放、文本代码高亮及上传临时碎片后台自动/手动清理。',
     '修复长文本展开滑动到底部再收起时视口丢失问题：收起后自动平滑滚动对齐该消息。',
     '消息撤回后恢复增加二次确认，恢复时刷新时间跳至最新并作为新消息广播展示。',
     '聊天气泡及消息时间戳格式化去除秒针，仅保留年/月/日 时:分。',
@@ -276,6 +277,10 @@ def init_db():
     mcols = [r['name'] for r in con.execute('PRAGMA table_info(messages)').fetchall()]
     if 'private' not in mcols:
         con.execute('ALTER TABLE messages ADD COLUMN private INTEGER NOT NULL DEFAULT 0')
+    if 'reply_to_id' not in mcols:
+        con.execute('ALTER TABLE messages ADD COLUMN reply_to_id TEXT')
+    if 'pinned' not in mcols:
+        con.execute('ALTER TABLE messages ADD COLUMN pinned INTEGER NOT NULL DEFAULT 0')
     # 身份码恢复：users.id_code（恢复码/身份标识，可中文，唯一） + secret_hash（个人密码哈希）。
     ucols = [r['name'] for r in con.execute('PRAGMA table_info(users)').fetchall()]
     if 'id_code' not in ucols:
@@ -669,11 +674,35 @@ def message_public(row: sqlite3.Row) -> dict:
     user = con.execute('SELECT * FROM users WHERE id=?', (row['user_id'],)).fetchone()
     f = con.execute('SELECT * FROM files WHERE id=?', (row['file_id'],)).fetchone() if row['file_id'] else None
     file_user = con.execute('SELECT nickname FROM users WHERE id=?', (f['user_id'],)).fetchone() if f else None
+    reply_msg = None
+    reply_to_id = row['reply_to_id'] if 'reply_to_id' in row.keys() else None
+    if reply_to_id:
+        r_row = con.execute('SELECT m.*, u.nickname FROM messages m LEFT JOIN users u ON m.user_id=u.id WHERE m.id=?', (reply_to_id,)).fetchone()
+        if r_row:
+            rf = con.execute('SELECT * FROM files WHERE id=?', (r_row['file_id'],)).fetchone() if r_row['file_id'] else None
+            r_snippet = '（已撤回）' if r_row['withdrawn'] else (r_row['content'] or (f"[{file_kind(rf['original_name'], rf['mime'])}] {rf['original_name']}" if rf else ''))
+            reply_msg = {'id': r_row['id'], 'user_id': r_row['user_id'], 'nickname': r_row['nickname'] or '未知用户', 'snippet': r_snippet[:100], 'withdrawn': bool(r_row['withdrawn'])}
     con.close()
     fd = file_public(f)
     if fd:
         fd['uploader'] = file_user['nickname'] if file_user else '未知用户'
-    return {'id':row['id'],'user':user_public(user) if user else None,'user_id':row['user_id'],'content':row['content'],'msg_type':row['msg_type'],'file':fd,'private':bool(row['private']) if 'private' in row.keys() else False,'withdrawn':bool(row['withdrawn']),'deleted':bool(row['deleted']),'edited':bool(row['edited']),'created_at':row['created_at'],'updated_at':row['updated_at']}
+    return {
+        'id': row['id'],
+        'user': user_public(user) if user else None,
+        'user_id': row['user_id'],
+        'content': row['content'],
+        'msg_type': row['msg_type'],
+        'file': fd,
+        'reply_to_id': reply_to_id,
+        'reply': reply_msg,
+        'pinned': bool(row['pinned']) if 'pinned' in row.keys() else False,
+        'private': bool(row['private']) if 'private' in row.keys() else False,
+        'withdrawn': bool(row['withdrawn']),
+        'deleted': bool(row['deleted']),
+        'edited': bool(row['edited']),
+        'created_at': row['created_at'],
+        'updated_at': row['updated_at']
+    }
 
 
 def visible_file_ids_for_users(con: sqlite3.Connection) -> set[str]:
@@ -712,7 +741,7 @@ def save_upload_meta(upload_id: str, meta: dict):
     (d / 'meta.json').write_text(json.dumps(meta, ensure_ascii=False))
 
 
-def finalize_uploaded_file(user: sqlite3.Row, original: str, source: Path, mime: str, content: str, preview_source: Optional[Path] = None, private: int = 0):
+def finalize_uploaded_file(user: sqlite3.Row, original: str, source: Path, mime: str, content: str, preview_source: Optional[Path] = None, private: int = 0, reply_to_id: Optional[str] = None):
     original=safe_name(original or 'file'); ext=Path(original).suffix.lower(); stored=f"{uuid.uuid4().hex}{ext}"; dest=UPLOADS_DIR/stored
     shutil.move(str(source), dest)
     size=dest.stat().st_size; kind=file_kind(original,mime); preview_path=make_preview(dest,kind)
@@ -723,7 +752,7 @@ def finalize_uploaded_file(user: sqlite3.Row, original: str, source: Path, mime:
     fid=str(uuid.uuid4()); mid=str(uuid.uuid4()); rel=str(dest.relative_to(DATA_DIR)); now=now_iso()
     is_private=1 if private else 0
     con=db(); public_name=make_public_name(con, original, fid); con.execute('INSERT INTO files(id,user_id,original_name,stored_name,public_name,path,preview_path,mime,size,kind,created_at) VALUES(?,?,?,?,?,?,?,?,?,?,?)',(fid,user['id'],original,stored,public_name,rel,preview_path,mime,size,kind,now))
-    con.execute('INSERT INTO messages(id,user_id,content,msg_type,file_id,private,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?)',(mid,user['id'],content,kind,fid,is_private,now,now))
+    con.execute('INSERT INTO messages(id,user_id,content,msg_type,file_id,private,reply_to_id,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?)',(mid,user['id'],content,kind,fid,is_private,reply_to_id,now,now))
     con.commit(); row=con.execute('SELECT * FROM messages WHERE id=?',(mid,)).fetchone(); con.close()
     return message_public(row), is_private
 
@@ -1133,7 +1162,7 @@ async def send_message(request: Request):
         resp=JSONResponse({'ok':True,'admin_redirect':True})
         resp.set_cookie('lanchat_admin', make_cookie({'admin':True,'v':get_setting('admin_version','1')}), max_age=10*365*24*3600, httponly=True, samesite='lax')
         return resp
-    mid=str(uuid.uuid4()); is_private=1 if data.get('private') else 0; con=db(); con.execute('INSERT INTO messages(id,user_id,content,msg_type,private,created_at,updated_at) VALUES(?,?,?,?,?,?,?)',(mid,u['id'],content,'text',is_private,now_iso(),now_iso())); con.commit(); row=con.execute('SELECT * FROM messages WHERE id=?',(mid,)).fetchone(); con.close()
+    mid=str(uuid.uuid4()); is_private=1 if data.get('private') else 0; reply_to_id=str(data.get('reply_to_id') or '').strip() or None; con=db(); con.execute('INSERT INTO messages(id,user_id,content,msg_type,private,reply_to_id,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?)',(mid,u['id'],content,'text',is_private,reply_to_id,now_iso(),now_iso())); con.commit(); row=con.execute('SELECT * FROM messages WHERE id=?',(mid,)).fetchone(); con.close()
     msg=message_public(row)
     if is_private:
         await hub.broadcast_private({'type':'message','message':msg}, u['id'])
@@ -1638,18 +1667,73 @@ def admin_get_settings(request: Request):
     }
 
 @app.get('/api/admin/users')
-def admin_users(request: Request, page: int = 1, per_page: int = 20, q: str = ''):
+def admin_users(request: Request, page: int = 1, per_page: int = 20, q: str = '', active_filter: str = '', only_online: int = 0):
     require_admin(request); con=db()
     page=max(1,page); per_page=max(1,min(per_page,200))
-    where=''; args=[]
-    if q: where=' WHERE nickname LIKE ? OR last_ip LIKE ?'; args=[f'%{q}%',f'%{q}%']
-    total=con.execute(f'SELECT COUNT(*) FROM users{where}',args).fetchone()[0]
-    offset=(page-1)*per_page
-    rows=con.execute(f'SELECT * FROM users{where} ORDER BY created_at DESC LIMIT ? OFFSET ?',[*args,per_page,offset]).fetchall(); con.close()
-    out=[]
+    where_clauses = ['1=1']
+    args = []
+    if q:
+        where_clauses.append('(u.nickname LIKE ? OR u.last_ip LIKE ?)')
+        args.extend([f'%{q}%', f'%{q}%'])
+    
+    now_dt = datetime.now(timezone.utc)
+    if active_filter == '7d':
+        cutoff = (now_dt - timedelta(days=7)).isoformat()
+        where_clauses.append('COALESCE(u.last_seen_at, u.created_at) >= ?')
+        args.append(cutoff)
+    elif active_filter == '30d':
+        cutoff = (now_dt - timedelta(days=30)).isoformat()
+        where_clauses.append('COALESCE(u.last_seen_at, u.created_at) >= ?')
+        args.append(cutoff)
+    elif active_filter == 'inactive_30d':
+        cutoff = (now_dt - timedelta(days=30)).isoformat()
+        where_clauses.append('COALESCE(u.last_seen_at, u.created_at) < ?')
+        args.append(cutoff)
+    elif active_filter == 'inactive_90d':
+        cutoff = (now_dt - timedelta(days=90)).isoformat()
+        where_clauses.append('COALESCE(u.last_seen_at, u.created_at) < ?')
+        args.append(cutoff)
+    elif active_filter == 'empty':
+        # 空用户：从未发过消息、从未传过文件
+        where_clauses.append('(SELECT COUNT(*) FROM messages m WHERE m.user_id=u.id)=0')
+        where_clauses.append('(SELECT COUNT(*) FROM files f WHERE f.user_id=u.id)=0')
+    
+    where_sql = ' AND '.join(where_clauses)
+    sql_base = f'''SELECT u.*, 
+      (SELECT COUNT(*) FROM messages m WHERE m.user_id=u.id AND m.deleted=0) AS msg_count,
+      (SELECT COUNT(*) FROM files f WHERE f.user_id=u.id AND f.deleted=0) AS file_count
+      FROM users u WHERE {where_sql}'''
+
+    all_online_uids = set(hub.clients.values())
+    
+    if only_online:
+        # If only online, filter in memory or via SQL IN
+        if not all_online_uids:
+            con.close()
+            return {'users': [], 'total': 0, 'page': page, 'per_page': per_page, 'online_count': 0}
+        placeholders = ','.join(['?'] * len(all_online_uids))
+        where_sql += f' AND u.id IN ({placeholders})'
+        args.extend(list(all_online_uids))
+        sql_base = f'''SELECT u.*, 
+          (SELECT COUNT(*) FROM messages m WHERE m.user_id=u.id AND m.deleted=0) AS msg_count,
+          (SELECT COUNT(*) FROM files f WHERE f.user_id=u.id AND f.deleted=0) AS file_count
+          FROM users u WHERE {where_sql}'''
+
+    total = con.execute(f'SELECT COUNT(*) FROM users u WHERE {where_sql}', args).fetchone()[0]
+    offset = (page-1)*per_page
+    order_by = 'ORDER BY COALESCE(u.last_seen_at, u.created_at) DESC' if active_filter.startswith('inactive') else 'ORDER BY u.created_at DESC'
+    rows = con.execute(f'{sql_base} {order_by} LIMIT ? OFFSET ?', [*args, per_page, offset]).fetchall()
+    con.close()
+    
+    out = []
     for r in rows:
-        d=dict(r); d['has_secret']=bool(d.get('secret_hash')); d.pop('secret_hash', None); d['last_ip']=ip_label(d.get('last_ip')); out.append(d)
-    return {'users': out, 'total': total, 'page': page, 'per_page': per_page}
+        d = dict(r)
+        d['has_secret'] = bool(d.get('secret_hash'))
+        d.pop('secret_hash', None)
+        d['last_ip'] = ip_label(d.get('last_ip'))
+        d['online'] = d['id'] in all_online_uids
+        out.append(d)
+    return {'users': out, 'total': total, 'page': page, 'per_page': per_page, 'online_count': len([uid for uid in all_online_uids if uid])}
 
 @app.post('/api/admin/users/{uid}/reset-secret')
 def admin_reset_secret(uid: str, request: Request):
@@ -1681,6 +1765,44 @@ def admin_delete_user(uid: str, request: Request):
     con.commit(); con.close()
     return {'ok': True}
 
+
+@app.post('/api/admin/users/cleanup-empty')
+async def admin_cleanup_empty_users(request: Request):
+    # 清理"残留空账户"：从未发过消息/传过文件、未设密码、且超过 N 天未活跃的临时账户。
+    require_admin(request)
+    data = {}
+    try:
+        data = await request.json()
+    except Exception:
+        data = {}
+    days = max(1, min(int(data.get('days') or 30), 365))
+    cutoff = (datetime.now(timezone.utc) - timedelta(days=days)).isoformat()
+    con = db()
+    # 候选：0 消息 + 0 文件 + 无密码 + 最后活跃（含创建时间兜底）早于 cutoff
+    rows = con.execute('''
+        SELECT u.id FROM users u
+        WHERE u.secret_hash IS NULL
+          AND (SELECT COUNT(*) FROM messages m WHERE m.user_id=u.id) = 0
+          AND (SELECT COUNT(*) FROM files f WHERE f.user_id=u.id) = 0
+          AND COALESCE(u.last_seen_at, u.created_at) < ?
+    ''', (cutoff,)).fetchall()
+    ids = [r['id'] for r in rows]
+    deleted = 0
+    if ids:
+        # 保险：二次确认这些 id 确实没有消息/文件，再删（防并发竞态）
+        clean_ids = []
+        for uid in ids:
+            mc = con.execute('SELECT COUNT(*) FROM messages WHERE user_id=?', (uid,)).fetchone()[0]
+            fc = con.execute('SELECT COUNT(*) FROM files WHERE user_id=?', (uid,)).fetchone()[0]
+            if mc == 0 and fc == 0:
+                clean_ids.append(uid)
+        if clean_ids:
+            ph = ','.join(['?'] * len(clean_ids))
+            con.execute(f'DELETE FROM users WHERE id IN ({ph})', clean_ids)
+            deleted = len(clean_ids)
+    con.commit(); con.close()
+    return {'ok': True, 'deleted': deleted, 'days': days}
+
 @app.get('/api/admin/messages')
 def admin_messages(request: Request, q: str='', type: str='', include_deleted: int = 0, page: int = 1, per_page: int = 30):
     require_admin(request); con=db()
@@ -1696,6 +1818,8 @@ def admin_messages(request: Request, q: str='', type: str='', include_deleted: i
         sql += ' AND m.private=1'
     elif type == 'file':
         sql += ' AND m.file_id IS NOT NULL AND m.file_id != ""'
+    elif type == 'pinned':
+        sql += ' AND m.pinned=1 AND m.deleted=0'
     elif type == 'normal':
         sql += ' AND m.withdrawn=0 AND m.deleted=0'
     total=con.execute(f'SELECT COUNT(*) FROM ({sql})',args).fetchone()[0]
@@ -1724,6 +1848,47 @@ async def admin_batch_messages(request: Request):
     for row in rows:
         await broadcast_msg(message_public(row),'update')
     return {'ok': True, 'count': len(ids)}
+
+
+@app.get('/api/messages/pinned')
+def get_pinned_messages(request: Request):
+    u = require_user(request); con = db()
+    rows = con.execute('SELECT * FROM messages WHERE pinned=1 AND deleted=0 AND withdrawn=0 AND private=0 ORDER BY updated_at DESC LIMIT 10').fetchall()
+    con.close()
+    return {'pinned': [message_public(r) for r in rows]}
+
+@app.patch('/api/admin/messages/{mid}/pin')
+async def admin_pin_message(mid: str, request: Request):
+    require_admin(request); data = await request.json()
+    want_pin = 1 if data.get('pinned') else 0
+    con = db()
+    if want_pin:
+        current_pins = con.execute('SELECT COUNT(*) FROM messages WHERE pinned=1 AND deleted=0').fetchone()[0]
+        if current_pins >= 10:
+            con.close()
+            raise HTTPException(400, '最多只能同时置顶 10 条消息，请先取消其他置顶')
+    con.execute('UPDATE messages SET pinned=?, updated_at=? WHERE id=?', (want_pin, now_iso(), mid))
+    con.commit(); row = con.execute('SELECT * FROM messages WHERE id=?', (mid,)).fetchone(); con.close()
+    if not row: raise HTTPException(404)
+    msg = message_public(row)
+    await broadcast_msg(msg, 'update')
+    return {'ok': True, 'message': msg}
+
+@app.post('/api/admin/cleanup-tmp')
+def admin_cleanup_tmp(request: Request):
+    require_admin(request)
+    deleted_dirs = 0; freed_bytes = 0
+    try:
+        for p in TMP_UPLOADS_DIR.iterdir():
+            if p.is_dir():
+                for root, dirs, files in os.walk(p):
+                    for f in files:
+                        try: freed_bytes += (Path(root)/f).stat().st_size
+                        except Exception: pass
+                shutil.rmtree(p, ignore_errors=True)
+                deleted_dirs += 1
+    except Exception: pass
+    return {'ok': True, 'count': deleted_dirs, 'freed_bytes': freed_bytes}
 
 @app.patch('/api/admin/messages/{mid}')
 async def admin_update_message(mid: str, request: Request):

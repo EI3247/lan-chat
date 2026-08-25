@@ -249,6 +249,9 @@ function openVideoBox(src,poster=''){
   document.body.appendChild(box);
 }
 
+
+function pad2(n){return n<10?'0'+n:n}
+function fmt(ts){try{let d=new Date(ts);if(isNaN(d.getTime()))return ts;return d.getFullYear()+"/"+(d.getMonth()+1)+"/"+d.getDate()+" "+pad2(d.getHours())+":"+pad2(d.getMinutes());}catch(e){return ts}}
 function size(n){const u=['B','KB','MB','GB','TB'];let i=0;n=Number(n||0);while(n>=1024&&i<u.length-1){n/=1024;i++}return `${n.toFixed(i?1:0)} ${u[i]}`}
 async function copyText(txt){if(navigator.clipboard){await navigator.clipboard.writeText(String(txt||''));return}const ta=document.createElement('textarea');ta.value=String(txt||'');ta.style.position='fixed';ta.style.left='-9999px';document.body.appendChild(ta);ta.focus();ta.select();document.execCommand('copy');ta.remove()}
 function fileKindIcon(kind){return kind==='image'?'🖼️':kind==='video'?'🎬':kind==='audio'?'🎵':kind==='text'?'📝':'📄'}
@@ -265,23 +268,53 @@ function pagerHTML(prefix,total,page,per_page){const pages=Math.ceil(total/per_p
 document.addEventListener('click',e=>{const b=e.target.closest('[data-pager-prefix]');if(!b||b.disabled)return;const p=b.dataset.pagerPrefix;if(b.classList.contains('pager-prev'))pageState[p]--;else if(b.classList.contains('pager-next'))pageState[p]++;if(p==='users')loadUsers(pageState.users);else if(p==='msgs')loadMsgs(pageState.msgs);else if(p==='files')loadFiles(pageState.files)});
 let pageState={users:1,msgs:1,files:1};
 let allUsers=[];
-function renderUsers(list){return list.map(u=>`<div class="admin-row user-admin-row">
-  <b>${esc(u.nickname)}</b>
-  <div class="user-fields">
-    <div><span>用户ID：</span><code>${esc(u.id)}</code></div>
-    <div><span>身份码：</span><code>${esc(u.id_code||'无')}</code></div>
-    <div><span>密码：</span><code>${u.has_secret?'🔑 已设':'— 未设'}</code></div>
-    <div><span>最近 IP：</span><code>${esc(u.last_ip||'无')}</code></div>
-    <div><span>创建时间：</span><code>${u.created_at?new Date(u.created_at).toLocaleString():'无'}</code></div>
-    <div><span>最后活跃：</span><code>${u.last_seen_at?new Date(u.last_seen_at).toLocaleString():'无'}</code></div>
-    <div><span>头像类型：</span><code>${esc(u.avatar_type||'')}</code></div>
-    <div><span>头像值：</span><code>${esc(u.avatar_value||'')}</code></div>
-  </div>
-  <label>昵称：<input data-unick="${u.id}" value="${esc(u.nickname)}"></label>
-  <div class="admin-actions"><button data-usave="${u.id}" class="ghost">保存昵称</button>${u.has_secret?`<button data-ureset="${u.id}" class="ghost">重置密码</button>`:''}<button data-udel="${u.id}" class="danger">删除用户</button></div>
-</div>`).join('')||'<div class="admin-row">暂无用户</div>'}
+function renderUsers(list){
+  return list.map(u => {
+    const onlineBadge = u.online ? '<span class="status-badge ok">🟢 在线</span>' : '<span class="status-badge grp">⚪ 离线</span>';
+    const lastActive = u.last_seen_at ? fmt(u.last_seen_at) : (u.created_at ? fmt(u.created_at) : '无记录');
+    return `<div class="admin-row user-admin-row">
+      <div class="user-card-head">
+        <b>${esc(u.nickname)}</b>
+        ${onlineBadge}
+        <span class="user-msg-stat">💬 消息: <strong>${u.msg_count||0}</strong> 条 · 📁 文件: <strong>${u.file_count||0}</strong> 个</span>
+      </div>
+      <div class="user-fields">
+        <div><span>用户ID：</span><code>${esc(u.id)}</code></div>
+        <div><span>身份码：</span><code>${esc(u.id_code||'无')}</code></div>
+        <div><span>密码状态：</span><code>${u.has_secret?'🔑 已设密码':'— 未设密码'}</code></div>
+        <div><span>最近 IP：</span><code>${esc(u.last_ip||'未知')}</code></div>
+        <div><span>创建时间：</span><code>${u.created_at ? fmt(u.created_at) : '未知'}</code></div>
+        <div><span>最后活跃：</span><code>${lastActive}</code></div>
+      </div>
+      <div class="user-edit-row">
+        <label>修改昵称：<input data-unick="${u.id}" value="${esc(u.nickname)}"></label>
+        <div class="admin-actions">
+          <button data-usave="${u.id}" class="ghost">保存</button>
+          ${u.has_secret ? `<button data-ureset="${u.id}" class="ghost">重置密码</button>` : ''}
+          <button data-udel="${u.id}" class="danger">删除用户</button>
+        </div>
+      </div>
+    </div>`;
+  }).join('') || '<div class="admin-row">暂无符合条件的用户</div>';
+}
 function filterUsers(){loadUsers(1)}
-async function loadUsers(page){page=page||pageState.users||1;pageState.users=page;let q=encodeURIComponent($('#userQ')?.value||'');let d=await api(`/api/admin/users?page=${page}&per_page=20${q?`&q=${q}`:''}`);allUsers=d.users||[];let html=renderUsers(allUsers);html+=pagerHTML('users',d.total||0,page,20);$('#users').innerHTML=html}
+async function loadUsers(page){
+  page=page||pageState.users||1;
+  pageState.users=page;
+  let q=encodeURIComponent($('#userQ')?.value||'');
+  let af=encodeURIComponent($('#userActiveFilter')?.value||'');
+  let onlineOnly=$('#onlyOnlineUsers')?.checked ? 1 : 0;
+  let d=await api(`/api/admin/users?page=${page}&per_page=20${q?`&q=${q}`:''}${af?`&active_filter=${af}`:''}&only_online=${onlineOnly}`);
+  allUsers=d.users||[];
+  const badge = $('#onlineCountBadge');
+  if(badge) badge.textContent = d.online_count || 0;
+  let html=renderUsers(allUsers);
+  html+=pagerHTML('users',d.total||0,page,20);
+  $('#users').innerHTML=html;
+}
+$('#loadUsersBtn') && ($('#loadUsersBtn').onclick=()=>loadUsers(1));
+$('#userActiveFilter') && ($('#userActiveFilter').onchange=()=>loadUsers(1));
+$('#onlyOnlineUsers') && ($('#onlyOnlineUsers').onchange=()=>loadUsers(1));
 $('#userQ') && ($('#userQ').oninput=()=>{clearTimeout(window.userT);window.userT=setTimeout(filterUsers,200)});
 $('#users').onclick=async e=>{let b=e.target.closest('button');if(!b)return;let id=b.dataset.usave||b.dataset.udel||b.dataset.ureset;if(b.dataset.usave){let nick=document.querySelector(`[data-unick="${id}"]`).value;await api(`/api/admin/users/${id}`,{method:'PATCH',body:JSON.stringify({nickname:nick})});toast('已保存')}if(b.dataset.ureset){if(confirm('重置该用户密码？重置后变为无密码，且无法在其它设备恢复（需先重新设置密码）。')){await api(`/api/admin/users/${id}/reset-secret`,{method:'POST'});toast('密码已重置');loadUsers(pageState.users)}}if(b.dataset.udel){if(confirm('确定删除这个用户身份？历史消息会保留，但显示为未知用户。')){await api(`/api/admin/users/${id}`,{method:'DELETE'});toast('用户已删除');loadUsers(pageState.users)}}}
 function statusLabel(m){
@@ -292,10 +325,11 @@ function statusLabel(m){
 }
 function actionButtons(m){
   const save = `<button type="button" data-msave="${m.id}" class="btn-msg-act save">保存修改</button>`;
+  const pin = `<button type="button" data-mpin="${m.id}" data-pinned="${m.pinned?1:0}" class="btn-msg-act pin ${m.pinned?'is-pinned':''}">${m.pinned?'取消置顶':'📌 置顶'}</button>`;
   const del = `<button type="button" data-mdel="${m.id}" class="btn-msg-act del">删除</button>`;
   if(m.deleted) return `<button type="button" data-mrestore="${m.id}" class="btn-msg-act restore">恢复显示</button>`;
   if(m.withdrawn) return `${save}<button type="button" data-mrestore="${m.id}" class="btn-msg-act restore">恢复显示</button>${del}`;
-  return `${save}<button type="button" data-mwithdraw="${m.id}" class="btn-msg-act withdraw">撤回</button>${del}`;
+  return `${save}${pin}<button type="button" data-mwithdraw="${m.id}" class="btn-msg-act withdraw">撤回</button>${del}`;
 }
 function fileHint(m){
   if(!m.file) return '';
@@ -413,7 +447,7 @@ function closeDialog(d){ if(!d) return; d.close(); setModalLock() }
 function bindStableEditorScroll(root=document){ root.querySelectorAll?.('#textFileContent,#composeText').forEach(el=>{ if(el.dataset.stableScrollBound)return; el.dataset.stableScrollBound='1'; let lastX=0,lastY=0; el.addEventListener('touchstart',e=>{lastX=e.touches[0].clientX;lastY=e.touches[0].clientY},{passive:true}); el.addEventListener('touchmove',e=>{ const t=e.touches[0], x=t.clientX, y=t.clientY, dx=x-lastX, dy=y-lastY; lastX=x; lastY=y; const horizontal=Math.abs(dx)>Math.abs(dy); const atLeft=el.scrollLeft<=0, atRight=el.scrollLeft+el.clientWidth>=el.scrollWidth-1; const atTop=el.scrollTop<=0, atBottom=el.scrollTop+el.clientHeight>=el.scrollHeight-1; if(horizontal){ if((atLeft&&dx>0)||(atRight&&dx<0)) e.preventDefault(); e.stopPropagation(); return; } if((atTop&&dy>0)||(atBottom&&dy<0)) e.preventDefault(); e.stopPropagation(); },{passive:false}); el.addEventListener('wheel',e=>{ const horizontal=Math.abs(e.deltaX)>Math.abs(e.deltaY); const atLeft=el.scrollLeft<=0, atRight=el.scrollLeft+el.clientWidth>=el.scrollWidth-1; const atTop=el.scrollTop<=0, atBottom=el.scrollTop+el.clientHeight>=el.scrollHeight-1; if(horizontal){ if((atLeft&&e.deltaX<0)||(atRight&&e.deltaX>0)) e.preventDefault(); e.stopPropagation(); return; } if((atTop&&e.deltaY<0)||(atBottom&&e.deltaY>0)) e.preventDefault(); e.stopPropagation(); },{passive:false}); }); }
 
 function setTextFileMode(mode){const dlg=$('#textFileDialog'),ta=$('#textFileContent');if(!dlg||!ta)return;const edit=mode==='edit';dlg.dataset.mode=edit?'edit':'view';ta.readOnly=!edit;ta.classList.toggle('readonly',!edit);$('#textFileTitle')?.classList.toggle('editing-title',edit);document.querySelectorAll('[data-text-view]').forEach(x=>x.classList.toggle('hidden',edit));document.querySelectorAll('[data-text-edit]').forEach(x=>x.classList.toggle('hidden',!edit));/* 不自动聚焦，避免移动端键盘/视口导致文本编辑页上下跳动 */}
-async function openTextFile(fid){try{const d=await api(`/api/file/${fid}/text`);const dlg=$('#textFileDialog'),ta=$('#textFileContent');dlg.dataset.fid=fid;dlg.dataset.original=d.content;$('#textFileTitle').textContent=d.name;$('#textFileMeta').textContent=`${d.size} B · ${d.encoding}`;ta.value=d.content;setTextFileMode('view');showDialog(dlg)}catch(e){toast('文本文件打开失败：可能不是文本类型')}}
+async function openTextFile(fid){try{const d=await api(`/api/file/${fid}/text`);const dlg=$('#textFileDialog'),ta=$('#textFileContent'),code=$('#textFileCode');dlg.dataset.fid=fid;dlg.dataset.original=d.content;$('#textFileTitle').textContent=d.name;$('#textFileMeta').textContent=`${d.size} B · ${d.encoding}`;ta.value=d.content;const ext=(d.name||'').split('.').pop().toLowerCase();if(code)code.innerHTML=highlightCodeSyntax(d.content,ext);setTextFileMode('view');showDialog(dlg)}catch(e){toast('文本文件打开失败：可能不是文本类型')}}
 function bindTextFileDialog(afterSave){document.querySelectorAll('.dialog button[value="cancel"]').forEach(btn=>btn.addEventListener('click',e=>{e.preventDefault();closeDialog(btn.closest('dialog'))}));document.querySelectorAll('dialog').forEach(d=>d.addEventListener('close',setModalLock));$('#closeTextFile')&&($('#closeTextFile').onclick=()=>closeDialog($('#textFileDialog')));$('#editTextFile')&&($('#editTextFile').onclick=()=>setTextFileMode('edit'));$('#cancelTextFile')&&($('#cancelTextFile').onclick=()=>{const dlg=$('#textFileDialog'),ta=$('#textFileContent');if(!confirm('确定放弃本次修改？'))return;ta.value=dlg.dataset.original||'';setTextFileMode('view')});$('#saveTextFile')&&($('#saveTextFile').onclick=async()=>{if(!confirm('确定保存修改？'))return;const dlg=$('#textFileDialog'),fid=dlg.dataset.fid,ta=$('#textFileContent');await api(`/api/file/${fid}/text`,{method:'PATCH',body:JSON.stringify({content:ta.value})});dlg.dataset.original=ta.value;toast('文本文件已保存');setTextFileMode('view');afterSave&&afterSave()})}
 
 async function loadFiles(page){page=page||pageState.files||1;pageState.files=page;let q=encodeURIComponent($('#fileQ')?.value||''), kind=encodeURIComponent($('#fileKind')?.value||'');let d=await api(`/api/admin/files?q=${q}&kind=${kind}&page=${page}&per_page=30`);(d.files||[]).forEach(f=>fileStore.set(f.id,f));$('#adminFiles').innerHTML=`<div class="admin-batch"><label><input id="selectAllFiles" type="checkbox"> 全选</label><span class="batch-count" id="fileSelCount"></span><button data-fbatch="delete" class="danger">批量删除</button></div>`+(d.files||[]).map(f=>`<div class="file-item admin-file-item"><label class="file-check"><input type="checkbox" class="fileSelect" value="${f.id}"> 选择</label>${filePreview(f)}<div class="file-card"><div class="file-icon">${fileIcon(f.kind)}</div><div class="file-info"><button type="button" class="fn file-name-trigger" data-file-info="${f.id}" title="${esc(f.name)}">${esc(f.name)}</button><div class="fs">状态：${f.private?'<span class="status priv-text">🔒私人</span>':'<span class="status grp-text">💬群聊</span>'}</div><div class="fs">类型：${esc(f.kind)} · ${f.size} B · 上传者：${esc(f.uploader||'未知')}</div><div class="fs">时间：${new Date(f.created_at).toLocaleString()}</div><div class="fs">MIME：${esc(f.mime||'')}</div></div></div><div class="actions"><a href="${f.admin_download_url||f.public_download_url||f.url}" download>下载</a><a href="${f.admin_view_url||f.page_url||f.view_url||f.url}" target="_blank" rel="noopener">打开</a>${f.kind==='text'?`<button type="button" data-text-file="${f.id}">在线查看/编辑</button>`:''}<select data-kind="${f.id}"><option value="">改类型</option><option value="text"${f.kind==='text'?' selected':''}>文本</option><option value="image"${f.kind==='image'?' selected':''}>图片</option><option value="video"${f.kind==='video'?' selected':''}>视频</option><option value="audio"${f.kind==='audio'?' selected':''}>音频</option><option value="file"${f.kind==='file'?' selected':''}>普通文件</option></select><button class="ghost" data-kind-save="${f.id}">保存类型</button><button class="danger" data-file-del="${f.id}">删除文件</button></div></div>`).join('')+pagerHTML('files',d.total||0,page,30)}
@@ -430,3 +464,57 @@ $('#adminFiles').onclick=async e=>{
 $('#loadFiles') && ($('#loadFiles').onclick=()=>loadFiles(1));$('#fileQ') && ($('#fileQ').oninput=()=>clearTimeout(window.fileT)&&(window.fileT=setTimeout(()=>loadFiles(1),300)));$('#fileKind') && ($('#fileKind').onchange=()=>loadFiles(1));
 document.addEventListener('click',async e=>{let fi=e.target.closest('[data-file-info]');if(fi){e.preventDefault();openFileInfo(fi.dataset.fileInfo);return}let img=e.target.closest('[data-img-open]');if(img){e.preventDefault();openLightboxFromImg(img, document);return}let vid=e.target.closest('[data-video-open]');if(vid){e.preventDefault();openVideoBox(vid.dataset.videoOpen,vid.dataset.poster||'');return}let tf=e.target.closest('[data-text-file]');if(tf){e.preventDefault();openTextFile(tf.dataset.textFile);return}});
 bindTextFileDialog(()=>{loadFiles(pageState.files);loadMsgs(pageState.msgs)});
+
+// Pin Action & Cleanup Tmp
+
+document.addEventListener('click', async e => {
+  let pb = e.target.closest('[data-mpin]');
+  if(pb){
+    const id = pb.dataset.mpin, isPinned = pb.dataset.pinned === '1';
+    try{
+      await api(`/api/admin/messages/${id}/pin`, {method:'PATCH', body:JSON.stringify({pinned: !isPinned})});
+      toast(isPinned ? '已取消置顶' : '已置顶消息');
+      loadMsgs(pageState.msgs);
+    }catch(err){ toast('置顶操作失败'); }
+    return;
+  }
+  if(e.target.id === 'cleanupTmpBtn'){
+    if(!confirm('确定立即扫描并清理已过期的上传临时碎片？')) return;
+    try{
+      const res = await api('/api/admin/cleanup-tmp', {method:'POST'});
+      toast(`已清理 ${res.count||0} 个碎片目录，释放 ${size(res.freed_bytes||0)}`);
+    }catch(err){ toast('清理失败'); }
+    return;
+  }
+});
+
+function highlightCodeSyntax(code, ext){
+  let esc = escapeHtml(code);
+  if(ext === 'json'){
+    return esc.replace(/("(\\u[a-zA-Z0-9]{4}|\\[^u]|[^\\"])*"(\s*:)?|\b(true|false|null)\b|-?\d+(?:\.\d*)?(?:[eE][+\-]?\d+)?)/g, match => {
+      let cls = 'hl-num';
+      if(/^"/.test(match)){ cls = /:$/.test(match) ? 'hl-key' : 'hl-str'; }
+      else if(/true|false/.test(match)){ cls = 'hl-bool'; }
+      else if(/null/.test(match)){ cls = 'hl-null'; }
+      return `<span class="${cls}">${match}</span>`;
+    });
+  }
+  return esc
+    .replace(/(#|\/\/)(.*)$/gm, '<span class="hl-cmt">$&</span>')
+    .replace(/(["'`])(?:(?=(\\?))\2.)*?\1/g, '<span class="hl-str">$&</span>')
+    .replace(/\b(def|class|function|const|let|var|return|if|else|elif|for|while|import|from|export|async|await|try|catch|except|finally|public|private|static|void|int|str|bool|SELECT|INSERT|UPDATE|DELETE|FROM|WHERE)\b/g, '<span class="hl-kw">$&</span>')
+    .replace(/\b(\d+)\b/g, '<span class="hl-num">$&</span>');
+}
+
+
+$('#cleanupEmptyUsersBtn') && ($('#cleanupEmptyUsersBtn').onclick = async () => {
+  const days = prompt('清理超过多少天未活跃的空账户？（0 消息 + 0 文件 + 未设密码，默认 30）', '30');
+  if(days === null) return;
+  const n = parseInt(days, 10) || 30;
+  if(!confirm(`确定清理 ${n} 天未活跃的空账户吗？\n删除条件：从未发消息、从未传文件、未设密码。\n此操作不可恢复！`)) return;
+  try{
+    const res = await api('/api/admin/users/cleanup-empty', {method:'POST', body:JSON.stringify({days: n})});
+    toast(`已清理 ${res.deleted || 0} 个空账户`);
+    loadUsers(1);
+  }catch(e){ toast('清理失败：' + (errText(e) || e.message || '')); }
+});

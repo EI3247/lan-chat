@@ -47,8 +47,8 @@ function renderMarkdown(text){
 function mediaName(f,icon){let name=escapeHtml(f.name), meta=`${escapeHtml(f.kind)} · ${size(f.size)}`;return `<button type="button" class="media-name file-name-trigger" data-file-info="${f.id}"><span class="media-icon">${icon}</span><span class="media-text"><span class="media-title">${name}</span><span class="media-sub">${meta}</span></span></button>`}
 function fileBlock(f){ if(!f) return ''; let view=f.public_view_url||f.view_url||f.url, name=escapeHtml(f.name), meta=`${escapeHtml(f.kind)} · ${size(f.size)}`;
   if(f.kind==='image'){let src=f.preview_url||view; return `<div class="media-card"><div class="media"><img class="zoomable" data-full="${view}" src="${src}" alt="${name}" loading="lazy"></div>${mediaName(f,'🖼️')}</div>`}
-  if(f.kind==='video') return `<div class="media-card"><div class="media"><video src="${view}" ${f.preview_url?`poster="${f.preview_url}"`:''} controls preload="metadata"></video></div>${mediaName(f,'🎬')}</div>`
-  if(f.kind==='audio') return `<div class="media-card audio-card"><div class="media"><audio src="${view}" controls preload="metadata"></audio></div>${mediaName(f,'🎵')}</div>`
+  if(f.kind==='video') return `<div class="media-card"><div class="media"><video src="${view}" ${f.preview_url?`poster="${f.preview_url}"`:''} controls preload="metadata"></video><button class="media-rate-btn" type="button" data-rate-btn title="切换倍速">1.0x</button></div>${mediaName(f,'🎬')}</div>`
+  if(f.kind==='audio') return `<div class="media-card audio-card"><div class="media"><audio src="${view}" controls preload="metadata"></audio><button class="media-rate-btn" type="button" data-rate-btn title="切换倍速">1.0x</button></div>${mediaName(f,'🎵')}</div>`
   if(f.kind==='text') return `<div class="file-card"><div class="file-icon">📝</div><div class="file-info"><button type="button" class="fn file-name-trigger" data-file-info="${f.id}" title="${name}">${name}</button><div class="fs">${meta}</div></div></div>`
   return `<div class="file-card"><div class="file-icon">📄</div><div class="file-info"><button type="button" class="fn file-name-trigger" data-file-info="${f.id}" title="${name}">${name}</button><div class="fs">${meta}</div></div></div>`
 }
@@ -59,23 +59,29 @@ function fileMenuButtons(f){ if(!f) return ''; let url=f.public_download_url||f.
 }
 function renderMessage(m){
   const mine=me&&m.user_id===me.id;
+  const pinTag=m.pinned?'<span class="msg-pin-badge" title="置顶消息">📌</span>':'';
   const lock=m.private?'<span class="msg-lock" title="私人消息，仅自己可见">🔒</span>':'';
-  let content=m.withdrawn?`<div class="withdrawn">${escapeHtml(m.user?.nickname||'有人')}撤回了一条消息</div>`:`<div class="content">${renderMarkdown(m.content||'')}</div>${fileBlock(m.file)}`;
+  let replyHtml = '';
+  if(m.reply && !m.withdrawn){
+    replyHtml = `<div class="msg-quote" data-quote-id="${escapeHtml(m.reply.id)}"><span class="quote-user">${escapeHtml(m.reply.nickname)}:</span> <span class="quote-text">${escapeHtml(m.reply.snippet)}</span></div>`;
+  }
+  let content=m.withdrawn?`<div class="withdrawn">${escapeHtml(m.user?.nickname||'有人')}撤回了一条消息</div>`:`${replyHtml}<div class="content">${renderMarkdown(m.content||'')}</div>${fileBlock(m.file)}`;
   const visBtn=mine&&!m.withdrawn?(m.private?`<button data-makepublic="${m.id}">设为公开</button>`:`<button data-makeprivate="${m.id}">设为私人</button>`):'';
   const fileItems=!m.withdrawn?fileMenuButtons(m.file):'';
+  const replyBtn=!m.withdrawn?`<button data-reply="${m.id}">引用</button>`:'';
   const ownItems=mine&&!m.withdrawn?`<button data-edit="${m.id}">编辑</button>${visBtn}<button data-withdraw="${m.id}">撤回</button>`:'';
-  const menuItems=fileItems+ownItems;
+  const menuItems=replyBtn+fileItems+ownItems;
   const more=menuItems?`<button class="msg-more-btn" data-menu="${m.id}" title="更多" aria-label="更多">⋯</button>`:'';
   const menuRow=menuItems?`<div class="msg-menu" data-menu-for="${m.id}" hidden>${menuItems}</div>`:'';
   const actions=m._pending?'':(m.withdrawn?(mine?`<div class="actions"><button data-restore="${m.id}">恢复</button></div>`:''):`<div class="actions"><button data-copy="${m.id}">复制</button><button data-toggle="${m.id}">展开</button>${more}</div>${menuRow}`);
-  return `<article id="m-${m.id}" data-user-id="${escapeHtml(m.user_id)}" class="msg ${mine?'mine':''} ${m.private?'msg-private':''} ${m._pending?'_pending':''}"><button class="avatar-btn" data-user-info="${escapeHtml(m.user_id)}" title="查看用户资料">${avatar(m.user)}</button><div class="bubble"><div class="meta"><span class="name">${escapeHtml(m.user?.nickname||'未知')}</span><span class="msg-time">${m._pending?'发送中…':fmt(m.edited&&m.updated_at?m.updated_at:m.created_at)}</span>${m.edited?'<span>已编辑</span>':''}${lock}</div>${content}${actions}</div></article>`
+  return `<article id="m-${m.id}" data-user-id="${escapeHtml(m.user_id)}" class="msg ${mine?'mine':''} ${m.private?'msg-private':''} ${m._pending?'_pending':''}"><button class="avatar-btn" data-user-info="${escapeHtml(m.user_id)}" title="查看用户资料">${avatar(m.user)}</button><div class="bubble"><div class="meta"><span class="name">${escapeHtml(m.user?.nickname||'未知')}</span><span class="msg-time">${m._pending?'发送中…':fmt(m.edited&&m.updated_at?m.updated_at:m.created_at)}</span>${m.edited?'<span>已编辑</span>':''}${pinTag}${lock}</div>${content}${actions}</div></article>`
 }
 function nearBottom(){return messagesEl.scrollHeight - messagesEl.scrollTop - messagesEl.clientHeight < 120}
 function scrollBottomSoon(){const gen=autoScrollGeneration;const go=()=>{if(gen!==autoScrollGeneration||Date.now()-lastMessageScrollIntentAt<900)return;messagesEl.scrollTop=messagesEl.scrollHeight};go();requestAnimationFrame(go);[80,260,700,1200].forEach(t=>setTimeout(go,t))}
 function syncMediaCardWidths(){messagesEl.querySelectorAll('.media-card:not(.audio-card)').forEach(card=>{const media=card.querySelector('.media img,.media video'); if(!media)return; const renderedW=Math.ceil(media.getBoundingClientRect().width); const intrinsicW=media.tagName==='VIDEO'?(media.videoWidth||0):(media.naturalWidth||0); const tinyIntrinsic=intrinsicW>0&&intrinsicW<=220; const fallback=tinyIntrinsic||renderedW<=180||card.classList.contains('media-card-fallback')&&intrinsicW===0; const target=fallback?220:renderedW; card.style.width=target+'px'; card.classList.toggle('media-card-fallback',fallback);})}
 function bindMediaSettleScroll(){messagesEl.querySelectorAll('img,video').forEach(el=>{if(el.dataset.scrollBound)return;el.dataset.scrollBound='1';['load','loadedmetadata','loadeddata'].forEach(ev=>el.addEventListener(ev,()=>{syncMediaCardWidths(); if(nearBottom())scrollBottomSoon()},{once:true}))}); syncMediaCardWidths()}
 function rememberFile(f){if(f&&f.id) fileStore.set(f.id,f); return f}
-function upsertMessage(m, opts={}){ if(m&&m.id) messageStore.set(m.id,m); if(m&&m.file) rememberFile(m.file); let stick=opts.forceScroll || nearBottom(); let old=$(`#m-${CSS.escape(m.id)}`); if(m.deleted){old?.remove(); messageStore.delete(m.id); return} if(!msgInCurrentView(m)){ old?.remove(); return } const html=renderMessage(m); if(old) old.outerHTML=html; else messagesEl.insertAdjacentHTML('beforeend',html); collapseLong(); bindMediaSettleScroll(); refreshDateDividers(); if(stick) scrollBottomSoon(); else { if(!old && typeof bumpNewCount==='function') bumpNewCount(); } }
+function upsertMessage(m, opts={}){ if(m&&m.id) messageStore.set(m.id,m); if(m&&m.file) rememberFile(m.file); let stick=opts.forceScroll || nearBottom(); let old=$(`#m-${CSS.escape(m.id)}`); if(m.deleted){old?.remove(); messageStore.delete(m.id); return} if(!msgInCurrentView(m)){ old?.remove(); return } const html=renderMessage(m); if(old) old.outerHTML=html; else messagesEl.insertAdjacentHTML('beforeend',html); collapseLong(); bindMediaSettleScroll(); refreshDateDividers(); loadPinnedBanner(); if(stick) scrollBottomSoon(); else { if(!old && typeof bumpNewCount==='function') bumpNewCount(); } }
 function collapseLong(){document.querySelectorAll('.content').forEach(e=>{ const article=e.closest('.msg'); const id=article?.id?.replace(/^m-/,''); const btn=article?.querySelector('[data-toggle]'); e.classList.remove('collapsed'); e.dataset.manual=''; const isLong=e.scrollHeight>340; if(btn) btn.style.display=isLong?'inline-flex':'none'; if(isLong && !expandedMessages.has(id)) e.classList.add('collapsed'); if(expandedMessages.has(id)) e.dataset.manual='1'; if(btn) btn.textContent=e.classList.contains('collapsed')?'展开':'收起'; })}
 function dayKey(ts){const d=new Date(ts); return `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`}
 function dayLabel(ts){const d=new Date(ts); const now=new Date(); const t0=new Date(now.getFullYear(),now.getMonth(),now.getDate()); const md=new Date(d.getFullYear(),d.getMonth(),d.getDate()); const diff=Math.round((t0-md)/86400000); if(diff===0) return '今天'; if(diff===1) return '昨天'; if(diff===2) return '前天'; const wk=['星期日','星期一','星期二','星期三','星期四','星期五','星期六'][d.getDay()]; const sameYear=d.getFullYear()===now.getFullYear(); const dateStr=sameYear?`${d.getMonth()+1}月${d.getDate()}日`:`${d.getFullYear()}年${d.getMonth()+1}月${d.getDate()}日`; return diff>=3&&diff<=6?`${dateStr} ${wk}`:dateStr}
@@ -90,7 +96,7 @@ function refreshDateDividers(){
   }
 }
 let hasMoreOlder=true, loadingOlder=false, oldestId=null;
-async function loadMessages(opts={}){let stick=opts.forceScroll || nearBottom() || messagesEl.childElementCount===0; const prevTop=messagesEl.scrollTop, prevH=messagesEl.scrollHeight; const d=await api(`/api/messages?limit=120&scope=${chatMode}`); messagesEl.innerHTML=''; messageStore.clear(); d.messages.forEach(m=>{ if(m&&m.id) messageStore.set(m.id,m); if(m&&m.file) rememberFile(m.file); messagesEl.insertAdjacentHTML('beforeend',renderMessage(m)) }); hasMoreOlder=d.messages.length>=120; oldestId=d.messages.length?d.messages[0].id:null; collapseLong(); bindMediaSettleScroll(); refreshDateDividers(); if(stick) scrollBottomSoon(); else if(opts.keepView){messagesEl.scrollTop=prevTop+(messagesEl.scrollHeight-prevH)} if(typeof updateChatFab==='function')setTimeout(updateChatFab,60)}
+async function loadMessages(opts={}){let stick=opts.forceScroll || nearBottom() || messagesEl.childElementCount===0; const prevTop=messagesEl.scrollTop, prevH=messagesEl.scrollHeight; const d=await api(`/api/messages?limit=120&scope=${chatMode}`); messagesEl.innerHTML=''; messageStore.clear(); d.messages.forEach(m=>{ if(m&&m.id) messageStore.set(m.id,m); if(m&&m.file) rememberFile(m.file); messagesEl.insertAdjacentHTML('beforeend',renderMessage(m)) }); hasMoreOlder=d.messages.length>=120; oldestId=d.messages.length?d.messages[0].id:null; collapseLong(); bindMediaSettleScroll(); refreshDateDividers(); loadPinnedBanner(); if(stick) scrollBottomSoon(); else if(opts.keepView){messagesEl.scrollTop=prevTop+(messagesEl.scrollHeight-prevH)} if(typeof updateChatFab==='function')setTimeout(updateChatFab,60)}
 async function loadOlder(){
   if(loadingOlder||!hasMoreOlder||!oldestId) return;
   loadingOlder=true; const loader=document.createElement('div'); loader.className='older-loader'; loader.textContent='加载更早的消息…'; messagesEl.prepend(loader);
@@ -103,7 +109,7 @@ async function loadOlder(){
       d.messages.forEach(m=>{ if(m&&m.id) messageStore.set(m.id,m); if(m&&m.file) rememberFile(m.file); const tmp=document.createElement('template'); tmp.innerHTML=renderMessage(m); frag.appendChild(tmp.content.firstElementChild); });
       messagesEl.prepend(frag);
       oldestId=d.messages[0].id; hasMoreOlder=d.messages.length>=30;
-      collapseLong(); refreshDateDividers();
+      collapseLong(); refreshDateDividers(); loadPinnedBanner();
       messagesEl.scrollTop=prevTop+(messagesEl.scrollHeight-prevH); // 保持视觉位置不跳
     } else { hasMoreOlder=false; }
   }catch{ loader.remove(); }
@@ -261,12 +267,16 @@ async function send(){const text=$('#messageInput').value; if(!text&&!attachQueu
       if(failedBatch){showFailedBanner(); toast(`${okCount} 个成功，${failedBatch.length} 个失败`);}
     } else {
       // 乐观渲染：点发送瞬间先出气泡，不等网络（绕开 Chrome 后台回来 socket 假死的 ~2s 延迟）
+      const sendReplyId = activeReplyId;
+      const targetReplyMsg = sendReplyId ? messageStore.get(sendReplyId) : null;
+      const replyData = targetReplyMsg ? {id: targetReplyMsg.id, user_id: targetReplyMsg.user_id, nickname: targetReplyMsg.user?.nickname||'未知用户', snippet: (targetReplyMsg.content||(targetReplyMsg.file?`[${targetReplyMsg.file.kind}] ${targetReplyMsg.file.name}`:'')).slice(0, 100), withdrawn: false} : null;
+      setReplyTarget(null);
       const tempId='temp-'+Date.now()+'-'+Math.random().toString(36).slice(2,7);
-      const tempMsg={id:tempId, user_id:me?.id, user:me, content:text, private:priv, created_at:new Date().toISOString(), _pending:true};
+      const tempMsg={id:tempId, user_id:me?.id, user:me, content:text, private:priv, reply_to_id:sendReplyId, reply:replyData, created_at:new Date().toISOString(), _pending:true};
       messageStore.set(tempId,tempMsg); messagesEl.insertAdjacentHTML('beforeend',renderMessage(tempMsg)); collapseLong(); scrollBottomSoon();
       $('#messageInput').value=''; autoGrowComposer();
       try{
-        const d=await api('/api/messages',{method:'POST',body:JSON.stringify({content:text,private:priv})});
+        const d=await api('/api/messages',{method:'POST',body:JSON.stringify({content:text,private:priv,reply_to_id:sendReplyId})});
         $(`#m-${CSS.escape(tempId)}`)?.remove(); messageStore.delete(tempId);
         if(d&&d.admin_redirect){toast('正在进入管理后台…'); setTimeout(()=>{location.href='/admin'},400); return}
         if(d&&d.message){upsertMessage(d.message,{forceScroll:true})}
@@ -318,14 +328,25 @@ async function openUserInfo(uid){
 
 function openCopyPanel(txt){ const ta=$('#copyTextArea'); ta.value=String(txt||''); showDialog($('#copyDialog')); setTimeout(()=>{ta.focus(); ta.select(); ta.setSelectionRange(0, ta.value.length)},0) }
 function setTextFileMode(mode){
-  const dlg=$('#textFileDialog'), ta=$('#textFileContent'); if(!dlg||!ta)return;
-  const edit=mode==='edit'; dlg.dataset.mode=edit?'edit':'view'; ta.readOnly=!edit; ta.classList.toggle('readonly',!edit); $('#textFileTitle')?.classList.toggle('editing-title',edit);
+  const dlg=$('#textFileDialog'), ta=$('#textFileContent'), wrap=$('#textFileCodeViewer'); if(!dlg||!ta)return;
+  const edit=mode==='edit'; dlg.dataset.mode=edit?'edit':'view'; ta.readOnly=!edit;
+  if(wrap) wrap.style.display = edit ? 'none' : 'block';
+  ta.style.display = edit ? 'block' : 'none';
+  $('#textFileTitle')?.classList.toggle('editing-title',edit);
   document.querySelectorAll('[data-text-view]').forEach(x=>{if(x.id==='editTextFile'&&dlg.dataset.isOwner==='0'){x.classList.add('hidden')}else{x.classList.toggle('hidden',edit)}});
   document.querySelectorAll('[data-text-edit]').forEach(x=>x.classList.toggle('hidden',!edit));
-  // 不自动聚焦，避免移动端键盘/视口导致文本编辑页上下跳动。
 }
 async function openTextFile(fid){
-  try{ const d=await api(`/api/file/${fid}/text`); const dlg=$('#textFileDialog'), ta=$('#textFileContent'); dlg.dataset.fid=fid; dlg.dataset.isOwner=d.is_owner?'1':'0'; dlg.dataset.original=d.content; $('#textFileTitle').textContent=d.name; $('#textFileMeta').textContent=`${size(d.size)} · ${d.encoding}`; ta.value=d.content; setTextFileMode('view'); showDialog(dlg) }catch(e){toast('文本文件打开失败')}
+  try{
+    const d=await api(`/api/file/${fid}/text`); const dlg=$('#textFileDialog'), ta=$('#textFileContent'), code=$('#textFileCode'), wrap=$('#textFileCodeViewer');
+    dlg.dataset.fid=fid; dlg.dataset.isOwner=d.is_owner?'1':'0'; dlg.dataset.original=d.content; dlg.dataset.fileName=d.name;
+    $('#textFileTitle').textContent=d.name; $('#textFileMeta').textContent=`${size(d.size)} · ${d.encoding}`;
+    ta.value=d.content;
+    const ext = (d.name||'').split('.').pop().toLowerCase();
+    if(code) code.innerHTML = highlightCodeSyntax(d.content, ext);
+    setTextFileMode('view');
+    showDialog(dlg);
+  }catch(e){toast('文本文件打开失败')}
 }
 function fileKindIcon(kind){return kind==='image'?'🖼️':kind==='video'?'🎬':kind==='audio'?'🎵':kind==='text'?'📝':'📄'}
 function fileInfoMarkup(f, rows, openUrl, downUrl, escFn=escapeHtml){
@@ -374,7 +395,9 @@ function el_menu(id){return document.querySelector(`.msg-menu[data-menu-for="${C
 function unlockBubbles(except){document.querySelectorAll('.bubble[data-wlock]').forEach(bb=>{if(bb!==except){bb.style.width='';bb.removeAttribute('data-wlock')}})}
 function closeMsgMenus(){document.querySelectorAll('.msg-menu').forEach(mm=>mm.hidden=true);document.querySelectorAll('.msg-more-btn.on').forEach(b=>b.classList.remove('on'));unlockBubbles(null)}
 document.addEventListener('click',e=>{if(!e.target.closest('.msg-menu')&&!e.target.closest('.msg-more-btn'))closeMsgMenus()});
-messagesEl.onclick=async e=>{let fi=e.target.closest('[data-file-info]'); if(fi){e.preventDefault(); e.stopPropagation(); openFileInfo(fi.dataset.fileInfo); return} let ub=e.target.closest('[data-user-info]'); if(ub){openUserInfo(ub.dataset.userInfo); return} let img=e.target.closest('img.zoomable'); if(img){openLightboxFromImg(img, messagesEl); return} let b=e.target.closest('button'); if(!b)return; if('codeCopy' in b.dataset){const code=b.closest('.code-block')?.querySelector('code')?.textContent||''; try{await copyText(code); toast('代码已复制')}catch{toast('复制失败，已尝试选中文本')} return} if(b.dataset.menu){e.stopPropagation(); const menu=el_menu(b.dataset.menu); const bubble=b.closest('.bubble'); document.querySelectorAll('.msg-menu').forEach(mm=>{if(mm!==menu)mm.hidden=true}); document.querySelectorAll('.msg-more-btn.on').forEach(x=>{if(x!==b)x.classList.remove('on')}); unlockBubbles(bubble); if(menu){const willOpen=menu.hidden; if(willOpen){ if(bubble){bubble.style.width=Math.max(Math.ceil(bubble.getBoundingClientRect().width),120)+'px'; bubble.setAttribute('data-wlock','1');} menu.hidden=false; b.classList.add('on'); requestAnimationFrame(()=>menu.scrollIntoView({block:'nearest',behavior:'smooth'})); } else { menu.hidden=true; b.classList.remove('on'); if(bubble){bubble.style.width='';bubble.removeAttribute('data-wlock');} } } return} if(b.dataset.open){openLightbox(b.dataset.open); return} if(b.dataset.textFile){openTextFile(b.dataset.textFile); return} let id=b.dataset.copy||b.dataset.toggle||b.dataset.edit||b.dataset.withdraw||b.dataset.restore||b.dataset.makeprivate||b.dataset.makepublic; let el=$(`#m-${CSS.escape(id)}`); if(b.dataset.copy){let txt=messageStore.get(id)?.content ?? el?.querySelector('.content')?.innerText ?? ''; try{await copyText(txt); toast('已复制整条消息')}catch{toast('复制失败，已尝试选中文本')}} if(b.dataset.toggle){let c=el?.querySelector('.content'); if(c){if(c.classList.contains('collapsed')){c.classList.remove('collapsed'); expandedMessages.add(id); c.dataset.manual='1'; b.textContent='收起'}else{c.classList.add('collapsed'); expandedMessages.delete(id); c.dataset.manual=''; b.textContent='展开'; if(el){el.scrollIntoView({behavior:'smooth',block:'nearest'})}}}} if(b.dataset.edit){closeMsgMenus(); editingId=id; const ed=$('#editText'); ed.value=messageStore.get(id)?.content ?? el?.querySelector('.content')?.innerText ?? ''; showDialog($('#editDialog')); setTimeout(()=>{autoGrowTextarea(ed); ed.focus()},0)} if(b.dataset.withdraw){if(confirm('确定撤回？')){await api(`/api/messages/${id}/withdraw`,{method:'POST'}); toast('已撤回')}} if(b.dataset.restore){if(confirm('确定恢复这条消息？恢复后将作为最新消息发送。')){try{await api(`/api/messages/${id}/restore`,{method:'POST'}); toast('已恢复')}catch{toast('恢复失败')}}} if(b.dataset.makeprivate){if(confirm('设为私人消息？设后仅你自己可见。')){try{await api(`/api/messages/${id}/visibility`,{method:'POST',body:JSON.stringify({private:true})}); toast('已设为私人')}catch{toast('操作失败')}}} if(b.dataset.makepublic){if(confirm('❗ 设为公开后，群聊里所有人都能看到这条消息。确定公开？')){try{await api(`/api/messages/${id}/visibility`,{method:'POST',body:JSON.stringify({private:false})}); toast('已设为公开')}catch{toast('操作失败')}}}}
+messagesEl.onclick=async e=>{let fi=e.target.closest('[data-file-info]'); if(fi){e.preventDefault(); e.stopPropagation(); openFileInfo(fi.dataset.fileInfo); return} let ub=e.target.closest('[data-user-info]'); if(ub){openUserInfo(ub.dataset.userInfo); return} let img=e.target.closest('img.zoomable'); if(img){openLightboxFromImg(img, messagesEl); return} let b=e.target.closest('button'); if(!b)return; if('codeCopy' in b.dataset){const code=b.closest('.code-block')?.querySelector('code')?.textContent||''; try{await copyText(code); toast('代码已复制')}catch{toast('复制失败，已尝试选中文本')} return} if(b.dataset.menu){e.stopPropagation(); const menu=el_menu(b.dataset.menu); const bubble=b.closest('.bubble'); document.querySelectorAll('.msg-menu').forEach(mm=>{if(mm!==menu)mm.hidden=true}); document.querySelectorAll('.msg-more-btn.on').forEach(x=>{if(x!==b)x.classList.remove('on')}); unlockBubbles(bubble); if(menu){const willOpen=menu.hidden; if(willOpen){ if(bubble){bubble.style.width=Math.max(Math.ceil(bubble.getBoundingClientRect().width),120)+'px'; bubble.setAttribute('data-wlock','1');} menu.hidden=false; b.classList.add('on'); requestAnimationFrame(()=>menu.scrollIntoView({block:'nearest',behavior:'smooth'})); } else { menu.hidden=true; b.classList.remove('on'); if(bubble){bubble.style.width='';bubble.removeAttribute('data-wlock');} } } return} if(b.dataset.open){openLightbox(b.dataset.open); return} if(b.dataset.textFile){openTextFile(b.dataset.textFile); return} let qCard=e.target.closest('[data-quote-id]'); if(qCard){ locateMessage(qCard.dataset.quoteId); return; }
+  let id=b.dataset.copy||b.dataset.toggle||b.dataset.edit||b.dataset.withdraw||b.dataset.restore||b.dataset.makeprivate||b.dataset.makepublic||b.dataset.reply;
+  if(b.dataset.reply){ closeMsgMenus(); const targetMsg = messageStore.get(id); if(targetMsg) setReplyTarget(targetMsg); return; } let el=$(`#m-${CSS.escape(id)}`); if(b.dataset.copy){let txt=messageStore.get(id)?.content ?? el?.querySelector('.content')?.innerText ?? ''; try{await copyText(txt); toast('已复制整条消息')}catch{toast('复制失败，已尝试选中文本')}} if(b.dataset.toggle){let c=el?.querySelector('.content'); if(c){if(c.classList.contains('collapsed')){c.classList.remove('collapsed'); expandedMessages.add(id); c.dataset.manual='1'; b.textContent='收起'}else{c.classList.add('collapsed'); expandedMessages.delete(id); c.dataset.manual=''; b.textContent='展开'; if(el){el.scrollIntoView({behavior:'smooth',block:'nearest'})}}}} if(b.dataset.edit){closeMsgMenus(); editingId=id; const ed=$('#editText'); ed.value=messageStore.get(id)?.content ?? el?.querySelector('.content')?.innerText ?? ''; showDialog($('#editDialog')); setTimeout(()=>{autoGrowTextarea(ed); ed.focus()},0)} if(b.dataset.withdraw){if(confirm('确定撤回？')){await api(`/api/messages/${id}/withdraw`,{method:'POST'}); toast('已撤回')}} if(b.dataset.restore){if(confirm('确定恢复这条消息？恢复后将作为最新消息发送。')){try{await api(`/api/messages/${id}/restore`,{method:'POST'}); toast('已恢复')}catch{toast('恢复失败')}}} if(b.dataset.makeprivate){if(confirm('设为私人消息？设后仅你自己可见。')){try{await api(`/api/messages/${id}/visibility`,{method:'POST',body:JSON.stringify({private:true})}); toast('已设为私人')}catch{toast('操作失败')}}} if(b.dataset.makepublic){if(confirm('❗ 设为公开后，群聊里所有人都能看到这条消息。确定公开？')){try{await api(`/api/messages/${id}/visibility`,{method:'POST',body:JSON.stringify({private:false})}); toast('已设为公开')}catch{toast('操作失败')}}}}
 $('#saveEdit').onclick=async e=>{e.preventDefault(); await api(`/api/messages/${editingId}`,{method:'PATCH',body:JSON.stringify({content:$('#editText').value})}); closeDialog($('#editDialog'))}
 document.querySelectorAll('.dialog button[value="cancel"]').forEach(btn=>{btn.addEventListener('click',e=>{e.preventDefault(); closeDialog(btn.closest('dialog'));});});
 document.querySelectorAll('dialog').forEach(d=>d.addEventListener('close',setModalLock));
@@ -383,7 +406,7 @@ $('#selectCopyText') && ($('#selectCopyText').onclick=()=>{const ta=$('#copyText
 $('#closeTextFile') && ($('#closeTextFile').onclick=()=>closeDialog($('#textFileDialog')));
 $('#editTextFile') && ($('#editTextFile').onclick=()=>setTextFileMode('edit'));
 $('#cancelTextFile') && ($('#cancelTextFile').onclick=()=>{const dlg=$('#textFileDialog'), ta=$('#textFileContent'); if(!confirm('确定放弃本次修改？'))return; ta.value=dlg.dataset.original||''; setTextFileMode('view')});
-$('#saveTextFile') && ($('#saveTextFile').onclick=async()=>{if(!confirm('确定保存修改？'))return; const dlg=$('#textFileDialog'), fid=dlg.dataset.fid, ta=$('#textFileContent'); await api(`/api/file/${fid}/text`,{method:'PATCH',body:JSON.stringify({content:ta.value})}); dlg.dataset.original=ta.value; toast('文本文件已保存'); setTextFileMode('view'); loadMessages({forceScroll:false}).catch(()=>{})});
+$('#saveTextFile') && ($('#saveTextFile').onclick=async()=>{if(!confirm('确定保存修改？'))return; const dlg=$('#textFileDialog'), fid=dlg.dataset.fid, ta=$('#textFileContent'), code=$('#textFileCode'); await api(`/api/file/${fid}/text`,{method:'PATCH',body:JSON.stringify({content:ta.value})}); dlg.dataset.original=ta.value; const ext=(dlg.dataset.fileName||'').split('.').pop().toLowerCase(); if(code) code.innerHTML=highlightCodeSyntax(ta.value, ext); toast('文本文件已保存'); setTextFileMode('view'); loadMessages({forceScroll:false}).catch(()=>{})});
 $('#editText').addEventListener('input', e=>autoGrowTextarea(e.target));
 async function openProfile(){selectedAvatar=null; if(pendingAvatarUrl){URL.revokeObjectURL(pendingAvatarUrl);} pendingAvatarBlob=null; pendingAvatarUrl=null; const p=await api('/api/presets'); $('#nicknameInput').value=me.nickname; $('#profileName').innerHTML=`${escapeHtml(me.nickname)} <span class="profile-ip">IP · ${escapeHtml(me.last_ip||'未知')}</span>`; const av=$('#profileAvatar'); if(me.avatar_type==='upload'){av.innerHTML=`<img src="${me.avatar_url}">`; av.dataset.full=me.avatar_url}else{av.innerHTML=escapeHtml(me.avatar_value); av.dataset.full=''} av.classList.toggle('avatar-zoomable', me.avatar_type==='upload'); $('#presetAvatars').innerHTML=p.avatars.map(a=>`<button class="avatar-choice" data-av="${a}">${a}</button>`).join(''); updateModeUI(); showDialog($('#profileDialog')); loadIdentity(); {const _ne=$('#nicknameError'); if(_ne){_ne.hidden=true;_ne.textContent='';}} const sc=$('#profileDialog').querySelector('.profile-scroll'); if(sc){sc.scrollTop=0; requestAnimationFrame(()=>{sc.scrollTop=0})}}
 
@@ -457,7 +480,7 @@ async function locateMessage(id){
         messagesEl.innerHTML=''; messageStore.clear();
         d.messages.forEach(m=>{ if(m&&m.id) messageStore.set(m.id,m); if(m&&m.file) rememberFile(m.file); messagesEl.insertAdjacentHTML('beforeend',renderMessage(m)); });
         oldestId=d.messages[0].id; hasMoreOlder=true;
-        collapseLong(); bindMediaSettleScroll(); refreshDateDividers();
+        collapseLong(); bindMediaSettleScroll(); refreshDateDividers(); loadPinnedBanner();
         el=$(`#m-${CSS.escape(id)}`);
       }
     }catch{}
@@ -926,7 +949,7 @@ let _midnightTimer=null;
 function scheduleMidnightRefresh(){
   if(_midnightTimer) clearTimeout(_midnightTimer);
   const now=new Date(); const next=new Date(now.getFullYear(),now.getMonth(),now.getDate()+1,0,0,30,0); // 明日 00:00:30
-  _midnightTimer=setTimeout(()=>{ try{ refreshDateDividers(); }catch{} scheduleMidnightRefresh(); }, Math.max(1000,next-now));
+  _midnightTimer=setTimeout(()=>{ try{ refreshDateDividers(); loadPinnedBanner(); }catch{} scheduleMidnightRefresh(); }, Math.max(1000,next-now));
 }
 scheduleMidnightRefresh();
 init();
@@ -1159,3 +1182,99 @@ function showP2pDialog(mode, title, subtitle){
   const cancelBtn=$('#p2pTransferCancel'); if(cancelBtn){ cancelBtn.style.display = mode==='rejected' ? 'none' : ''; cancelBtn.textContent = mode==='waiting' ? '取消等待' : '取消传输'; }
   showDialog(dlg);
 }
+
+// ===== 消息引用回复与置顶 =====
+let activeReplyId = null;
+function setReplyTarget(m){
+  if(!m){ activeReplyId = null; $('#replyBar')?.classList.add('hidden'); return; }
+  activeReplyId = m.id;
+  $('#replyUser').textContent = m.user?.nickname || '未知';
+  const rawText = (m.content || (m.file ? `[${m.file.kind}] ${m.file.name}` : '')).replace(/\s+/g, ' ').trim();
+  $('#replySnippet').textContent = rawText.slice(0, 60) + (rawText.length > 60 ? '…' : '');
+  $('#replyBar')?.classList.remove('hidden');
+  $('#messageInput')?.focus();
+}
+$('#cancelReplyBtn') && ($('#cancelReplyBtn').onclick = () => setReplyTarget(null));
+
+// ===== 媒体倍速切换 =====
+const PLAYBACK_RATES = [1.0, 1.25, 1.5, 2.0, 0.75];
+document.addEventListener('click', e => {
+  const rb = e.target.closest('[data-rate-btn]');
+  if(!rb) return;
+  e.preventDefault(); e.stopPropagation();
+  const media = rb.parentElement.querySelector('video, audio');
+  if(!media) return;
+  let currentRate = media.playbackRate || 1.0;
+  let idx = PLAYBACK_RATES.indexOf(currentRate);
+  let nextRate = PLAYBACK_RATES[(idx + 1) % PLAYBACK_RATES.length];
+  media.playbackRate = nextRate;
+  rb.textContent = nextRate.toFixed(nextRate % 1 === 0 ? 1 : 2).replace(/\.0$/, '') + 'x';
+});
+
+// ===== 置顶公告加载 =====
+let _pinnedList = [], _pinnedIdx = 0, _pinnedTimer = null;
+async function loadPinnedBanner(){
+  try{
+    const d = await api('/api/messages/pinned');
+    _pinnedList = (d.pinned || []).filter(p => p && !p.withdrawn && !p.deleted);
+    const banner = $('#pinnedBanner');
+    if(!banner) return;
+    if(!_pinnedList.length || chatMode === 'private'){
+      banner.classList.add('hidden');
+      if(_pinnedTimer) clearInterval(_pinnedTimer);
+      return;
+    }
+    renderCurrentPin();
+    banner.classList.remove('hidden');
+    if(_pinnedList.length > 1 && !_pinnedTimer){
+      _pinnedTimer = setInterval(() => {
+        _pinnedIdx = (_pinnedIdx + 1) % _pinnedList.length;
+        renderCurrentPin();
+      }, 4000);
+    }
+  }catch(e){}
+}
+function renderCurrentPin(){
+  if(!_pinnedList.length) return;
+  const p = _pinnedList[_pinnedIdx % _pinnedList.length];
+  const banner = $('#pinnedBanner');
+  if(!banner || !p) return;
+  banner.dataset.pinId = p.id;
+  const countTag = _pinnedList.length > 1 ? `<span class="pin-count">(${_pinnedIdx + 1}/${_pinnedList.length})</span> ` : '';
+  $('#pinnedContent').innerHTML = `${countTag}<strong>${escapeHtml(p.user?.nickname||'管理员')}:</strong> ${escapeHtml((p.content||(p.file?`[${p.file.kind}] ${p.file.name}`:'')).slice(0, 80))}`;
+}
+$('#pinnedContent') && ($('#pinnedContent').onclick = () => {
+  const pid = $('#pinnedBanner')?.dataset.pinId;
+  if(pid) locateMessage(pid);
+});
+$('#closePinnedBtn') && ($('#closePinnedBtn').onclick = () => { $('#pinnedBanner')?.classList.add('hidden'); });
+
+// ===== 轻量语法高亮 =====
+function highlightCodeSyntax(code, ext){
+  let esc = escapeHtml(code);
+  if(ext === 'json'){
+    return esc.replace(/("(\\u[a-zA-Z0-9]{4}|\\[^u]|[^\\"])*"(\s*:)?|\b(true|false|null)\b|-?\d+(?:\.\d*)?(?:[eE][+\-]?\d+)?)/g, match => {
+      let cls = 'hl-num';
+      if(/^"/.test(match)){ cls = /:$/.test(match) ? 'hl-key' : 'hl-str'; }
+      else if(/true|false/.test(match)){ cls = 'hl-bool'; }
+      else if(/null/.test(match)){ cls = 'hl-null'; }
+      return `<span class="${cls}">${match}</span>`;
+    });
+  }
+  // 通用关键词、字符串、注释
+  return esc
+    .replace(/(#|\/\/)(.*)$/gm, '<span class="hl-cmt">$&</span>')
+    .replace(/(["'`])(?:(?=(\\?))\2.)*?\1/g, '<span class="hl-str">$&</span>')
+    .replace(/\b(def|class|function|const|let|var|return|if|else|elif|for|while|import|from|export|async|await|try|catch|except|finally|public|private|static|void|int|str|bool|SELECT|INSERT|UPDATE|DELETE|FROM|WHERE)\b/g, '<span class="hl-kw">$&</span>')
+    .replace(/\b(\d+)\b/g, '<span class="hl-num">$&</span>');
+}
+
+
+// 保证点击引用卡片 100% 触发跳转定位
+document.addEventListener('click', e => {
+  const qc = e.target.closest('[data-quote-id]');
+  if(qc){
+    e.preventDefault(); e.stopPropagation();
+    locateMessage(qc.dataset.quoteId);
+  }
+}, true);

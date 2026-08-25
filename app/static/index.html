@@ -4,8 +4,8 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content" />
   <title>LAN Chat</title>
-  <link rel="icon" href="/favicon.ico?v=202608252335" />
-  <link rel="stylesheet" href="/static/style.css?v=202608252335" />
+  <link rel="icon" href="/favicon.ico?v=202608260047" />
+  <link rel="stylesheet" href="/static/style.css?v=202608260047" />
 </head>
 <body class="chat-page">
     <div id="login" class="login-screen hidden">
@@ -34,11 +34,20 @@
         <button id="profileBtn" class="ghost">我的</button>
       </div>
     </header>
+    <div id="pinnedBanner" class="pinned-banner glass hidden">
+      <div class="pin-icon">📌</div>
+      <div id="pinnedContent" class="pinned-text"></div>
+      <button id="closePinnedBtn" class="pinned-close" type="button" title="关闭提示">×</button>
+    </div>
 
     <main id="messages" class="messages"></main>
     <button id="chatScrollBottom" class="scroll-bottom-fab" type="button" title="回到最新" aria-label="回到最新">↓<span class="fab-dot"></span></button>
 
     <footer class="composer glass">
+      <div id="replyBar" class="reply-bar hidden">
+        <div class="reply-info">回复 <strong id="replyUser"></strong>: <span id="replySnippet"></span></div>
+        <button id="cancelReplyBtn" type="button" class="reply-cancel" title="取消引用">×</button>
+      </div>
       <div id="attachPreview" class="attach-preview hidden"></div>
       <div id="uploadProgress" class="upload-progress hidden"></div>
       <textarea id="messageInput" rows="1" placeholder="输入消息…"></textarea>
@@ -73,7 +82,8 @@
   <dialog id="textFileDialog" class="dialog full-dialog">
     <form method="dialog" class="dialog-card compose-card" onsubmit="event.preventDefault()">
       <div class="compose-head"><h2 id="textFileTitle">文本文件</h2><span id="textFileMeta"></span></div>
-      <textarea id="textFileContent" readonly></textarea>
+      <div id="textFileCodeViewer" class="code-viewer-wrap"><pre id="textFilePre"><code id="textFileCode"></code></pre></div>
+    <textarea id="textFileContent" readonly class="hidden"></textarea>
       <div class="dialog-actions text-file-actions">
         <button id="closeTextFile" type="button" class="ghost" data-text-view>关闭</button>
         <button id="editTextFile" type="button" class="primary" data-text-view>编辑</button>
@@ -294,6 +304,6 @@
     </form>
   </dialog>
 
-  <script src="/static/app.js?v=202608252335"></script>
+  <script src="/static/app.js?v=202608260047"></script>
 </body>
 </html>

@@ -1,6 +1,6 @@
 <!doctype html>
 <html lang="zh-CN">
-<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>文件目录 - LAN Chat</title><link rel="stylesheet" href="/static/style.css?v=202608252335"><link rel="icon" href="/favicon.ico?v=202608252335"></head>
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>文件目录 - LAN Chat</title><link rel="stylesheet" href="/static/style.css?v=202608260047"><link rel="icon" href="/favicon.ico?v=202608260047"></head>
 <body class="files-page">
 <div class="page-shell">
   <header class="topbar glass file-titlebar"><div class="title-wrap"><div class="logo">📁</div><div><h1>文件目录</h1></div></div></header>
@@ -13,7 +13,8 @@
 <dialog id="textFileDialog" class="dialog full-dialog">
   <form method="dialog" class="dialog-card compose-card" onsubmit="event.preventDefault()">
     <div class="compose-head"><h2 id="textFileTitle">文本文件</h2><span id="textFileMeta"></span></div>
-    <textarea id="textFileContent" readonly></textarea>
+    <div id="textFileCodeViewer" class="code-viewer-wrap"><pre id="textFilePre"><code id="textFileCode"></code></pre></div>
+    <textarea id="textFileContent" readonly class="hidden"></textarea>
     <div class="dialog-actions text-file-actions">
       <button id="closeTextFile" type="button" class="ghost" data-text-view>关闭</button>
       <button id="editTextFile" type="button" class="primary" data-text-view>编辑</button>
@@ -23,5 +24,5 @@
   </form>
 </dialog>
 <div id="toast" class="toast hidden"></div>
-<script src="/static/files.js?v=202608252335"></script>
+<script src="/static/files.js?v=202608260047"></script>
 </body></html>
