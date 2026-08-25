@@ -39,9 +39,10 @@ DB_PATH = DATA_DIR / 'chat.db'
 SITE_TITLE = os.getenv('LANCHAT_SITE_TITLE', 'LAN Chat')
 WELCOME = os.getenv('LANCHAT_WELCOME', '局域网聊天室')
 FILES_TITLE = os.getenv('LANCHAT_FILES_TITLE', '文件目录')
-APP_VERSION = "202608252314"
-APP_UPDATED_AT = "2026-08-25 23:14"
+APP_VERSION = "202608252335"
+APP_UPDATED_AT = "2026-08-25 23:35"
 APP_CHANGELOG = [
+    '修复长文本展开滑动到底部再收起时视口丢失问题：收起后自动平滑滚动对齐该消息。',
     '消息撤回后恢复增加二次确认，恢复时刷新时间跳至最新并作为新消息广播展示。',
     '聊天气泡及消息时间戳格式化去除秒针，仅保留年/月/日 时:分。',
     '网盘页列表底部渐隐 mask 减弱（最低不透明度 0.10→0.35），滑到底时最后一张卡片文字不再过暗。',
