@@ -39,9 +39,10 @@ DB_PATH = DATA_DIR / 'chat.db'
 SITE_TITLE = os.getenv('LANCHAT_SITE_TITLE', 'LAN Chat')
 WELCOME = os.getenv('LANCHAT_WELCOME', '局域网聊天室')
 FILES_TITLE = os.getenv('LANCHAT_FILES_TITLE', '文件目录')
-APP_VERSION = "202608230510"
-APP_UPDATED_AT = "2026-08-23 05:10"
+APP_VERSION = "202608252314"
+APP_UPDATED_AT = "2026-08-25 23:14"
 APP_CHANGELOG = [
+    '消息撤回后恢复增加二次确认，恢复时刷新时间跳至最新并作为新消息广播展示。',
     '聊天气泡及消息时间戳格式化去除秒针，仅保留年/月/日 时:分。',
     '网盘页列表底部渐隐 mask 减弱（最低不透明度 0.10→0.35），滑到底时最后一张卡片文字不再过暗。',
     '后台头部标题「超级管理后台」改为「管理后台」，副标题改为路径提示文字 /admin。',
@@ -1281,8 +1282,17 @@ async def restore_own_message(mid: str, request: Request):
     if row['user_id'] != u['id']: raise HTTPException(403)
     if not row['withdrawn']:
         con.close(); return {'ok': True, 'message': message_public(row)}
-    con.execute('UPDATE messages SET withdrawn=0, updated_at=? WHERE id=?',(now_iso(),mid)); con.commit(); row=con.execute('SELECT * FROM messages WHERE id=?',(mid,)).fetchone(); con.close()
-    msg=message_public(row); await broadcast_msg(msg,'update'); return {'ok':True,'message':msg}
+    # 恢复视为重新发送：刷新 created_at 和 updated_at，作为新消息在时间轴跳到最新
+    _now=now_iso()
+    con.execute('UPDATE messages SET withdrawn=0, created_at=?, updated_at=? WHERE id=?',(_now,_now,mid))
+    # 连带恢复关联的软删除文件（若有）
+    if row['file_id']:
+        con.execute('UPDATE files SET deleted=0 WHERE id=?',(row['file_id'],))
+    con.commit(); row=con.execute('SELECT * FROM messages WHERE id=?',(mid,)).fetchone(); con.close()
+    msg=message_public(row)
+    await hub.broadcast({'type':'remove','id':mid})
+    await broadcast_msg(msg,'message')
+    return {'ok':True,'message':msg}
 
 
 @app.post('/api/messages/{mid}/visibility')
