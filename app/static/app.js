@@ -13,7 +13,9 @@ function toast(t){const e=$('#toast'); e.textContent=t; e.classList.remove('hidd
 async function api(url,opt={}){const r=await fetch(url,{headers:{'Content-Type':'application/json',...(opt.headers||{})},...opt}); if(r.status===401){showLogin(); throw new Error('auth')}; if(!r.ok){let t=await r.text(); throw new Error(t)} return r.json()}
 function errText(e){let m=e&&e.message?e.message:''; try{const j=JSON.parse(m); if(j&&j.detail) return j.detail}catch{} return m}
 function showLogin(){ $('#login').classList.remove('hidden'); $('#app').classList.add('hidden') }
-function showApp(){ $('#login').classList.add('hidden'); $('#app').classList.remove('hidden') }
+
+
+function showApp(){ $('#login').classList.add('hidden'); $('#app').classList.remove('hidden'); }
 
 let modalScrollY=0;
 function setModalLock(){ const open=!!document.querySelector('dialog[open]'); if(open){ if(!document.body.classList.contains('modal-open')) modalScrollY=window.scrollY||document.documentElement.scrollTop||0; document.documentElement.classList.add('modal-open'); document.body.classList.add('modal-open'); document.body.style.top=`-${modalScrollY}px`; } else { document.documentElement.classList.remove('modal-open'); document.body.classList.remove('modal-open'); document.body.style.top=''; if(modalScrollY) window.scrollTo(0,modalScrollY); modalScrollY=0; } }
@@ -145,13 +147,20 @@ window.addEventListener('resize', ()=>{autoGrowComposer(); autoGrowTextarea($('#
 setTimeout(autoGrowComposer,0);
 function clearAttach(){attachQueue=[]; $('#fileInput').value=''; renderAttachPreview()}
 function renderAttachPreview(){const el=$('#attachPreview'); if(!el)return; if(!attachQueue.length){el.classList.add('hidden'); el.innerHTML=''; return} el.classList.remove('hidden'); const head=attachQueue.length===1?`将上传：${escapeHtml(attachQueue[0].name)} (${size(attachQueue[0].size)})`:`将上传 ${attachQueue.length} 个文件`; const list=attachQueue.length>1?`<div class="attach-list">${attachQueue.map((f,i)=>`<span class="attach-chip">${escapeHtml(f.name)} (${size(f.size)})<button type="button" class="attach-chip-x" data-attach-rm="${i}" title="移除">×</button></span>`).join('')}</div>`:''; el.innerHTML=`<div class="attach-head"><span>${head}</span><button type="button" class="attach-cancel" id="cancelAttach">清空</button></div>${list}`}
-/* ===== 📎 附件二级菜单：上传文件 / P2P 直传 ===== */
+/* ===== 📎 附件二级菜单：上传文件 / 拍照 / P2P 直传 ===== */
 const attachMenu=$('#attachMenu'), attachBtn=$('#attachBtn');
-$('#attachUpload').onclick=()=>{ attachMenu.hidden=true; $('#fileInput').click() };
+function setAttachMenuOpen(open){
+  attachMenu.hidden=!open;
+  if(attachBtn) attachBtn.classList.toggle('active', !!open);
+  if(!open){ const pop=document.getElementById('p2pUserPop'); if(pop) pop.remove() }
+}
+$('#attachImage').onclick=()=>{ setAttachMenuOpen(false); $('#imageInput').click() };
+$('#attachCamera').onclick=()=>{ setAttachMenuOpen(false); $('#cameraInput').click() };
+$('#attachUpload').onclick=()=>{ setAttachMenuOpen(false); $('#fileInput').click() };
 $('#attachP2p').onclick=e=>{ e.stopPropagation(); renderP2pUserList() };
-function closeAttachMenu(e){ if(attachMenu.hidden) return; if(!e.target.closest('.attach-wrap')) attachMenu.hidden=true }
+function closeAttachMenu(e){ if(attachMenu.hidden) return; if(!e.target.closest('.attach-wrap')) setAttachMenuOpen(false) }
 document.addEventListener('click', closeAttachMenu);
-attachBtn.onclick=e=>{ e.stopPropagation(); attachMenu.hidden=!attachMenu.hidden; const pop=document.getElementById('p2pUserPop'); if(pop) pop.remove(); };
+attachBtn.onclick=e=>{ e.stopPropagation(); setAttachMenuOpen(attachMenu.hidden); };
 /* P2P：拉在线用户渲染到菜单下方弹层 */
 async function renderP2pUserList(){
   let d;
@@ -167,7 +176,7 @@ async function renderP2pUserList(){
   box.onclick=e=>{
     const b=e.target.closest('[data-p2p-uid]');
     if(!b) return;
-    box.remove(); attachMenu.hidden=true;
+    box.remove(); setAttachMenuOpen(false);
     p2pStartSend(b.dataset.p2pUid);
   };
   setTimeout(()=>{
@@ -175,6 +184,8 @@ async function renderP2pUserList(){
     document.addEventListener('click',h);
   },0);
 }
+$('#imageInput').onchange=e=>{const fs=Array.from(e.target.files||[]); if(fs.length){attachQueue=attachQueue.concat(fs)} renderAttachPreview()}
+$('#cameraInput').onchange=e=>{const fs=Array.from(e.target.files||[]); if(fs.length){attachQueue=attachQueue.concat(fs)} renderAttachPreview()}
 $('#fileInput').onchange=e=>{const fs=Array.from(e.target.files||[]); if(fs.length){attachQueue=attachQueue.concat(fs)} renderAttachPreview()}
 $('#attachPreview').onclick=e=>{const rm=e.target.closest('[data-attach-rm]'); if(rm){const i=+rm.dataset.attachRm; attachQueue.splice(i,1); renderAttachPreview(); return} if(e.target.closest('#cancelAttach')){ if(currentUpload) cancelUpload(); else clearAttach() }}
 function autoGrowTextarea(el){ if(!el) return; el.style.height='auto'; const max=Math.floor(window.innerHeight*0.72); el.style.height=Math.min(el.scrollHeight+8,max)+'px'; el.style.overflowY=el.scrollHeight>max?'auto':'hidden' }

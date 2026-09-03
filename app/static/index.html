@@ -4,8 +4,8 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content" />
   <title>LAN Chat</title>
-  <link rel="icon" href="/favicon.ico?v=202608260047" />
-  <link rel="stylesheet" href="/static/style.css?v=202608260047" />
+  <link rel="icon" href="/favicon.ico?v=202609032035" />
+  <link rel="stylesheet" href="/static/style.css?v=202609032035" />
 </head>
 <body class="chat-page">
     <div id="login" class="login-screen hidden">
@@ -53,15 +53,32 @@
       <textarea id="messageInput" rows="1" placeholder="输入消息…"></textarea>
       <div class="composer-actions">
         <div class="attach-wrap">
-          <button id="attachBtn" class="file-btn" type="button" title="附件">📎</button>
+          <button id="attachBtn" class="file-btn" type="button" title="附件" aria-label="附件">
+            <svg class="attach-icon" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.0" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"></path>
+            </svg>
+          </button>
           <div id="attachMenu" class="attach-menu" hidden>
-            <button type="button" id="attachUpload">📤 上传文件</button>
-            <button type="button" id="attachP2p">📡 P2P 直传</button>
+            <button type="button" id="attachImage"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="3" ry="3"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg><span>上传图片</span></button>
+            <button type="button" id="attachCamera"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path><circle cx="12" cy="13" r="4"></circle></svg><span>拍照上传</span></button>
+            <button type="button" id="attachUpload"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg><span>上传文件</span></button>
+            <button type="button" id="attachP2p"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="2"></circle><path d="M16.24 7.76a6 6 0 0 1 0 8.49m-8.48-.01a6 6 0 0 1 0-8.49m11.31-2.82a10 10 0 0 1 0 14.14m-14.14 0a10 10 0 0 1 0-14.14"></path></svg><span>P2P 直传</span></button>
           </div>
+          <input id="imageInput" type="file" accept="image/*" hidden multiple />
+          <input id="cameraInput" type="file" accept="image/*" capture="environment" hidden />
           <input id="fileInput" type="file" hidden multiple />
         </div>
-        <a href="/files" class="ghost bottom-nav">网盘</a>
-        <button id="profileBtnBottom" class="ghost bottom-nav" type="button">我的</button>
+        <a href="/files" id="filesBtnBottom" class="ghost bottom-nav icon-nav-btn" title="网盘" aria-label="网盘">
+          <svg class="nav-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.0" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path>
+          </svg>
+        </a>
+        <button id="profileBtnBottom" class="ghost bottom-nav icon-nav-btn" type="button" title="我的" aria-label="我的">
+          <svg class="nav-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.0" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+            <circle cx="12" cy="7" r="4"></circle>
+          </svg>
+        </button>
         <button id="sendBtn" class="primary" type="button">发送</button>
       </div>
     </footer>
@@ -304,6 +321,6 @@
     </form>
   </dialog>
 
-  <script src="/static/app.js?v=202608260047"></script>
+  <script src="/static/app.js?v=202609032035"></script>
 </body>
 </html>

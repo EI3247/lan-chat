@@ -2002,3 +2002,146 @@ body.private-mode .glass{
   .user-msg-stat{margin-left:0;width:100%}
   .user-edit-row{flex-direction:column;align-items:stretch}
 }
+
+/* ===== 📎 附件按钮交互增强与二级菜单动画 ===== */
+.composer .file-btn{
+  display:inline-flex!important;
+  align-items:center!important;
+  justify-content:center!important;
+  color:var(--muted)!important;
+  transition:background .2s cubic-bezier(.16,1,.3,1), color .2s cubic-bezier(.16,1,.3,1), transform .15s cubic-bezier(.16,1,.3,1)!important;
+}
+.composer .file-btn .attach-icon{
+  transition:transform .24s cubic-bezier(.34,1.56,.64,1), color .2s ease;
+  transform-origin:center center;
+  display:block;
+}
+.composer .file-btn:hover{
+  color:var(--primary)!important;
+  background:rgba(79,124,255,.08)!important;
+}
+.composer .file-btn:active{
+  transform:scale(.90)!important;
+  background:rgba(79,124,255,.16)!important;
+}
+.composer .file-btn.active{
+  background:rgba(79,124,255,.15)!important;
+  color:var(--primary)!important;
+}
+.composer .file-btn.active .attach-icon{
+  transform:rotate(45deg) scale(1.1);
+  color:var(--primary);
+}
+@keyframes attachMenuPop{
+  from{opacity:0;transform:translateY(8px) scale(.95)}
+  to{opacity:1;transform:translateY(0) scale(1)}
+}
+.attach-menu:not([hidden]){
+  animation:attachMenuPop .18s cubic-bezier(.16,1,.3,1) both;
+  transform-origin:bottom left;
+}
+
+/* 附件按钮与图标尺寸强化 */
+.composer .file-btn{
+  width:44px!important;
+  height:44px!important;
+  padding:0!important;
+}
+.composer .file-btn .attach-icon{
+  width:24px!important;
+  height:24px!important;
+}
+@media(max-width:720px){
+  .composer .file-btn{
+    width:42px!important;
+    height:42px!important;
+  }
+  .composer .file-btn .attach-icon{
+    width:23px!important;
+    height:23px!important;
+  }
+}
+
+/* ===== 底部纯线条图标按钮（网盘 / 我的）：统一视觉与动效 ===== */
+.composer-actions .icon-nav-btn{
+  display:inline-flex!important;
+  align-items:center!important;
+  justify-content:center!important;
+  width:44px!important;
+  height:44px!important;
+  min-width:44px!important;
+  padding:0!important;
+  border-radius:999px!important;
+  color:var(--muted)!important;
+  text-decoration:none!important;
+  transition:background .2s cubic-bezier(.16,1,.3,1), color .2s ease, transform .14s cubic-bezier(.16,1,.3,1)!important;
+}
+.composer-actions .icon-nav-btn .nav-icon{
+  display:block;
+  stroke:currentColor;
+  transition:transform .2s cubic-bezier(.34,1.56,.64,1);
+}
+.composer-actions .icon-nav-btn:hover{
+  background:rgba(79,124,255,.08)!important;
+  color:var(--primary)!important;
+}
+.composer-actions .icon-nav-btn:hover .nav-icon{
+  transform:scale(1.12);
+}
+.composer-actions .icon-nav-btn:active{
+  transform:scale(.90)!important;
+  background:rgba(79,124,255,.16)!important;
+}
+@media(max-width:720px){
+  .composer-actions .icon-nav-btn{
+    width:42px!important;
+    height:42px!important;
+    min-width:42px!important;
+  }
+  .composer-actions .icon-nav-btn .nav-icon{
+    width:19px!important;
+    height:19px!important;
+  }
+}
+
+/* ===== 网盘页「聊天」按钮纯线条图标与动效 ===== */
+.files-page .file-bottom-bar .file-chat-btn{
+  display:inline-flex!important;
+  align-items:center!important;
+  justify-content:center!important;
+  width:44px!important;
+  height:44px!important;
+  min-width:44px!important;
+  padding:0!important;
+  border-radius:999px!important;
+  color:var(--muted)!important;
+  text-decoration:none!important;
+  transition:background .2s cubic-bezier(.16,1,.3,1), color .2s ease, transform .14s cubic-bezier(.16,1,.3,1)!important;
+}
+.files-page .file-bottom-bar .file-chat-btn .nav-icon{
+  display:block;
+  stroke:currentColor;
+  transition:transform .2s cubic-bezier(.34,1.56,.64,1);
+}
+.files-page .file-bottom-bar .file-chat-btn:hover{
+  background:rgba(79,124,255,.08)!important;
+  color:var(--primary)!important;
+}
+.files-page .file-bottom-bar .file-chat-btn:hover .nav-icon{
+  transform:scale(1.12);
+}
+.files-page .file-bottom-bar .file-chat-btn:active{
+  transform:scale(.90)!important;
+  background:rgba(79,124,255,.16)!important;
+}
+@media(max-width:720px){
+  .files-page .file-bottom-bar .file-chat-btn{
+    width:38px!important;
+    height:38px!important;
+    min-width:38px!important;
+  }
+  .files-page .file-bottom-bar .file-chat-btn .nav-icon{
+    width:18px!important;
+    height:18px!important;
+  }
+}
