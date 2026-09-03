@@ -1,6 +1,6 @@
 <!doctype html>
 <html lang="zh-CN">
-<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>文件目录 - LAN Chat</title><link rel="stylesheet" href="/static/style.css?v=202609032035"><link rel="icon" href="/favicon.ico?v=202609032035"></head>
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>文件目录 - LAN Chat</title><link rel="stylesheet" href="/static/style.css?v=1788437502"><link rel="icon" href="/favicon.ico?v=1788437502"></head>
 <body class="files-page">
 <div class="page-shell">
   <header class="topbar glass file-titlebar"><div class="title-wrap"><div class="logo">📁</div><div><h1>文件目录</h1></div></div></header>
@@ -9,7 +9,13 @@
       <svg class="nav-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.0" stroke-linecap="round" stroke-linejoin="round">
         <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
       </svg>
-    </a><button id="refresh" class="primary" type="button" title="搜索">搜索</button></section>
+    </a><button id="refresh" class="primary file-search-btn" type="button" title="搜索文件" aria-label="搜索">
+        <svg class="search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="11" cy="11" r="8"></circle>
+          <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+        </svg>
+        <span class="search-text">搜索</span>
+      </button></section>
   <main id="files" class="file-list"></main>
 </div>
 <button id="filesScrollBottom" class="scroll-bottom-fab" type="button" title="一键到底" aria-label="一键到底">↓<span class="fab-dot"></span></button>
@@ -28,5 +34,5 @@
   </form>
 </dialog>
 <div id="toast" class="toast hidden"></div>
-<script src="/static/files.js?v=202609032035"></script>
+<script src="/static/files.js?v=1788437502"></script>
 </body></html>

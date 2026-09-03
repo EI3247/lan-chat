@@ -4,8 +4,8 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content" />
   <title>LAN Chat</title>
-  <link rel="icon" href="/favicon.ico?v=202609032035" />
-  <link rel="stylesheet" href="/static/style.css?v=202609032035" />
+  <link rel="icon" href="/favicon.ico?v=202609032118" />
+  <link rel="stylesheet" href="/static/style.css?v=202609032118" />
 </head>
 <body class="chat-page">
     <div id="login" class="login-screen hidden">
@@ -52,6 +52,7 @@
       <div id="uploadProgress" class="upload-progress hidden"></div>
       <textarea id="messageInput" rows="1" placeholder="输入消息…"></textarea>
       <div class="composer-actions">
+        <!-- 附件菜单入口：📎 回形针线条图标 -->
         <div class="attach-wrap">
           <button id="attachBtn" class="file-btn" type="button" title="附件" aria-label="附件">
             <svg class="attach-icon" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.0" stroke-linecap="round" stroke-linejoin="round">
@@ -68,18 +69,38 @@
           <input id="cameraInput" type="file" accept="image/*" capture="environment" hidden />
           <input id="fileInput" type="file" hidden multiple />
         </div>
-        <a href="/files" id="filesBtnBottom" class="ghost bottom-nav icon-nav-btn" title="网盘" aria-label="网盘">
-          <svg class="nav-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.0" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path>
-          </svg>
-        </a>
-        <button id="profileBtnBottom" class="ghost bottom-nav icon-nav-btn" type="button" title="我的" aria-label="我的">
+        <!-- 图标按钮 1：我的 / 个人资料 (人像线条图标) -->
+        <button id="profileBtnBottom" class="ghost bottom-nav icon-nav-btn" type="button" title="我的资料与设置" aria-label="我的">
           <svg class="nav-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.0" stroke-linecap="round" stroke-linejoin="round">
             <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
             <circle cx="12" cy="7" r="4"></circle>
           </svg>
         </button>
-        <button id="sendBtn" class="primary" type="button">发送</button>
+        <!-- 图标按钮 2：群聊/私人模式切换 (双气泡=群聊，锁头=私人) -->
+        <button id="modeToggleBtn" class="ghost bottom-nav icon-nav-btn mode-toggle-btn" type="button" title="当前：群聊模式（点击切换私人模式）" aria-label="切换群聊/私人模式">
+          <svg class="nav-icon mode-icon-public" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.0" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z"></path>
+            <path d="M15.8 9.2a5 5 0 0 1 5.2 6.8L22 20l-3.9-1"></path>
+          </svg>
+          <svg class="nav-icon mode-icon-private hidden" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.0" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+            <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+          </svg>
+        </button>
+        <!-- 图标按钮 3：网盘文件列表 (文件夹线条图标) -->
+        <a href="/files" id="filesBtnBottom" class="ghost bottom-nav icon-nav-btn" title="网盘文件" aria-label="网盘">
+          <svg class="nav-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.0" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path>
+          </svg>
+        </a>
+        <!-- 主操作：发送按钮 -->
+        <button id="sendBtn" class="primary send-btn" type="button" aria-label="发送消息">
+          <svg class="send-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="22" y1="2" x2="11" y2="13"></line>
+            <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+          </svg>
+          <span class="send-text">发送</span>
+        </button>
       </div>
     </footer>
   </div>
@@ -321,6 +342,6 @@
     </form>
   </dialog>
 
-  <script src="/static/app.js?v=202609032035"></script>
+  <script src="/static/app.js?v=202609032118"></script>
 </body>
 </html>

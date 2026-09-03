@@ -2,7 +2,19 @@ let me=null, selectedAvatar=null, editingId=null, attachQueue=[], currentUpload=
 let chatMode=(localStorage.getItem('lanchat_mode')==='private')?'private':'public';
 function isPrivateMode(){return chatMode==='private'}
 function msgInCurrentView(m){ if(!m) return false; if(chatMode==='private') return !!m.private && me && m.user_id===me.id; return !m.private; }
-function updateModeUI(){ const priv=isPrivateMode(); document.querySelectorAll('[data-mode-label]').forEach(el=>el.textContent=priv?'私人模式':'群聊模式'); const badge=$('#modeBadge'); if(badge){ badge.classList.toggle('private',priv); badge.querySelector('.mode-badge-text').textContent=priv?'🔒 私人模式':'💬 群聊模式'; } const seg=$('#modeSeg'); if(seg){ seg.querySelectorAll('[data-mode-opt]').forEach(b=>b.classList.toggle('active', b.dataset.modeOpt===chatMode)); } const inp=$('#messageInput'); if(inp) inp.placeholder=priv?'输入私人消息（仅自己可见）…':'输入消息…'; document.body.classList.toggle('private-mode',priv); }
+function updateModeUI(){ const priv=isPrivateMode(); document.querySelectorAll('[data-mode-label]').forEach(el=>el.textContent=priv?'私人模式':'群聊模式'); const badge=$('#modeBadge'); if(badge){ badge.classList.toggle('private',priv); badge.querySelector('.mode-badge-text').textContent=priv?'🔒 私人模式':'💬 群聊模式'; } const seg=$('#modeSeg'); if(seg){ seg.querySelectorAll('[data-mode-opt]').forEach(b=>b.classList.toggle('active', b.dataset.modeOpt===chatMode)); } const inp=$('#messageInput'); if(inp) inp.placeholder=priv?'输入私人消息（仅自己可见）…':'输入消息…'; document.body.classList.toggle('private-mode',priv);
+  const mt=$('#modeToggleBtn');
+  if(mt){
+    mt.classList.toggle('is-private', priv);
+    mt.title = priv ? '当前：私人模式（仅自己可见，点击切换群聊）' : '当前：群聊模式（点击切换私人模式）';
+    const pubIc = mt.querySelector('.mode-icon-public');
+    const privIc = mt.querySelector('.mode-icon-private');
+    if(pubIc && privIc){
+      pubIc.classList.toggle('hidden', priv);
+      privIc.classList.toggle('hidden', !priv);
+    }
+  }
+}
 async function setChatMode(mode, opts={}){ const next=mode==='private'?'private':'public'; if(next===chatMode && !opts.force) { updateModeUI(); return; } chatMode=next; localStorage.setItem('lanchat_mode',chatMode); updateModeUI(); await loadMessages({forceScroll:true}); if(!opts.silent) toast(isPrivateMode()?'已切到私人模式：仅自己可见':'已切到群聊模式'); }
 const $=s=>document.querySelector(s); const messagesEl=$('#messages');
 let autoScrollGeneration=0,lastMessageScrollIntentAt=0;
@@ -145,7 +157,7 @@ $('#messageInput').addEventListener('focus', autoGrowComposer);
 $('#messageInput').addEventListener('blur', autoGrowComposer);
 window.addEventListener('resize', ()=>{autoGrowComposer(); autoGrowTextarea($('#editText')); syncMediaCardWidths()});
 setTimeout(autoGrowComposer,0);
-function clearAttach(){attachQueue=[]; $('#fileInput').value=''; renderAttachPreview()}
+function clearAttach(){attachQueue=[]; updateSendBtnState(); $('#fileInput').value=''; renderAttachPreview()}
 function renderAttachPreview(){const el=$('#attachPreview'); if(!el)return; if(!attachQueue.length){el.classList.add('hidden'); el.innerHTML=''; return} el.classList.remove('hidden'); const head=attachQueue.length===1?`将上传：${escapeHtml(attachQueue[0].name)} (${size(attachQueue[0].size)})`:`将上传 ${attachQueue.length} 个文件`; const list=attachQueue.length>1?`<div class="attach-list">${attachQueue.map((f,i)=>`<span class="attach-chip">${escapeHtml(f.name)} (${size(f.size)})<button type="button" class="attach-chip-x" data-attach-rm="${i}" title="移除">×</button></span>`).join('')}</div>`:''; el.innerHTML=`<div class="attach-head"><span>${head}</span><button type="button" class="attach-cancel" id="cancelAttach">清空</button></div>${list}`}
 /* ===== 📎 附件二级菜单：上传文件 / 拍照 / P2P 直传 ===== */
 const attachMenu=$('#attachMenu'), attachBtn=$('#attachBtn');
@@ -189,7 +201,15 @@ $('#cameraInput').onchange=e=>{const fs=Array.from(e.target.files||[]); if(fs.le
 $('#fileInput').onchange=e=>{const fs=Array.from(e.target.files||[]); if(fs.length){attachQueue=attachQueue.concat(fs)} renderAttachPreview()}
 $('#attachPreview').onclick=e=>{const rm=e.target.closest('[data-attach-rm]'); if(rm){const i=+rm.dataset.attachRm; attachQueue.splice(i,1); renderAttachPreview(); return} if(e.target.closest('#cancelAttach')){ if(currentUpload) cancelUpload(); else clearAttach() }}
 function autoGrowTextarea(el){ if(!el) return; el.style.height='auto'; const max=Math.floor(window.innerHeight*0.72); el.style.height=Math.min(el.scrollHeight+8,max)+'px'; el.style.overflowY=el.scrollHeight>max?'auto':'hidden' }
-function autoGrowComposer(){ const el=$('#messageInput'); if(!el) return; var savedTop=el.scrollTop; el.style.height='auto'; var maxH=Math.max(160, Math.floor((window.innerHeight||700)*0.7)); var h=Math.min(maxH, Math.max(44, el.scrollHeight)); el.style.height=h+'px'; el.style.overflowY=(el.scrollHeight>maxH+2)?'auto':'hidden'; el.scrollTop=savedTop }
+
+function updateSendBtnState(){
+  const btn=$('#sendBtn'), inp=$('#messageInput');
+  if(!btn) return;
+  const hasContent = !!((inp && inp.value.trim().length > 0) || (attachQueue && attachQueue.length > 0) || (currentUpload && currentUpload.status==='paused'));
+  btn.classList.toggle('has-content', hasContent);
+}
+
+function autoGrowComposer(){ const el=$('#messageInput'); if(!el) return; var savedTop=el.scrollTop; el.style.height='auto'; var maxH=Math.max(160, Math.floor((window.innerHeight||700)*0.7)); var h=Math.min(maxH, Math.max(44, el.scrollHeight)); el.style.height=h+'px'; el.style.overflowY=(el.scrollHeight>maxH+2)?'auto':'hidden'; el.scrollTop=savedTop; updateSendBtnState(); }
 function fmtSpeed(n){return `${size(n)}/s`}
 function setUploadProgress(state){
   let el=$('#uploadProgress'); if(!el)return;
@@ -249,7 +269,7 @@ async function runUploadQueue(files, text, priv){
     }
   }
   uploadQueueLabel='';
-  if(okCount){$('#messageInput').value=''; autoGrowComposer();}
+  if(okCount){$('#messageInput').value=''; autoGrowComposer(); updateSendBtnState();}
   return {failed, okCount};
 }
 function showFailedBanner(){
@@ -268,7 +288,15 @@ async function retryFailed(){
   }catch(e){if(!e.canceled&&!e.aborted){toast('重试出错');}}
   finally{$('#sendBtn').disabled=false}
 }
-async function send(){const text=$('#messageInput').value; if(!text&&!attachQueue.length)return; if(currentUpload&&currentUpload.status==='paused'){await resumeUpload(); return} const priv=isPrivateMode(); $('#sendBtn').disabled=true;
+async function send(){
+  const btn=$('#sendBtn');
+  if(btn){
+    btn.classList.remove('is-sending');
+    void btn.offsetWidth;
+    btn.classList.add('is-sending');
+    setTimeout(()=>btn&&btn.classList.remove('is-sending'), 450);
+  }
+  const text=$('#messageInput').value; if(!text&&!attachQueue.length)return; if(currentUpload&&currentUpload.status==='paused'){await resumeUpload(); return} const priv=isPrivateMode(); $('#sendBtn').disabled=true;
   try{
     if(attachQueue.length){
       const files=attachQueue.slice();
@@ -285,7 +313,7 @@ async function send(){const text=$('#messageInput').value; if(!text&&!attachQueu
       const tempId='temp-'+Date.now()+'-'+Math.random().toString(36).slice(2,7);
       const tempMsg={id:tempId, user_id:me?.id, user:me, content:text, private:priv, reply_to_id:sendReplyId, reply:replyData, created_at:new Date().toISOString(), _pending:true};
       messageStore.set(tempId,tempMsg); messagesEl.insertAdjacentHTML('beforeend',renderMessage(tempMsg)); collapseLong(); scrollBottomSoon();
-      $('#messageInput').value=''; autoGrowComposer();
+      $('#messageInput').value=''; autoGrowComposer(); updateSendBtnState();
       try{
         const d=await api('/api/messages',{method:'POST',body:JSON.stringify({content:text,private:priv,reply_to_id:sendReplyId})});
         $(`#m-${CSS.escape(tempId)}`)?.remove(); messageStore.delete(tempId);
@@ -431,6 +459,7 @@ $('#doRecoverBtn') && ($('#doRecoverBtn').onclick=async()=>{if(!confirm('恢复�
 $('#profileAvatar') && ($('#profileAvatar').onclick=()=>{const f=$('#profileAvatar').dataset.full; if(f) openLightbox(f, $('#profileDialog'), true)});
 $('#logoutBtn') && ($('#logoutBtn').onclick=async()=>{if(!confirm('确定退出当前设备？退出后需重新输入访问密码才能再次进入（不影响其他设备）。')) return; try{await api('/api/logout',{method:'POST'}); toast('已退出'); setTimeout(()=>{location.href='/'},600)}catch(e){toast('退出失败，请重试')}});
 $('#profileBtn') && ($('#profileBtn').onclick=openProfile);
+$('#modeToggleBtn') && ($('#modeToggleBtn').onclick=()=>setChatMode(isPrivateMode()?'public':'private'));
 $('#profileBtnBottom') && ($('#profileBtnBottom').onclick=openProfile)
 
 // ===== 聊天室搜索 =====

@@ -2145,3 +2145,133 @@ body.private-mode .glass{
     height:18px!important;
   }
 }
+
+/* ===== 输入框模式切换按钮 (群聊 ⇄ 私人) ===== */
+.composer-actions .mode-toggle-btn.is-private{
+  color:#9061f9!important;
+  background:rgba(144,97,249,.14)!important;
+}
+.composer-actions .mode-toggle-btn.is-private:hover{
+  background:rgba(144,97,249,.22)!important;
+}
+.composer-actions .mode-toggle-btn.is-private:active{
+  background:rgba(144,97,249,.30)!important;
+  transform:scale(.90)!important;
+}
+
+/* ===== 动态发送按钮交互 (Telegram 风格) ===== */
+.composer #sendBtn{
+  display:inline-flex!important;
+  align-items:center!important;
+  justify-content:center!important;
+  gap:6px!important;
+  border-radius:999px!important;
+  padding:8px 16px!important;
+  font-weight:600!important;
+  min-width:0!important;
+  flex:0 0 auto!important;
+  border:0!important;
+  background:rgba(102,119,153,.18)!important;
+  color:var(--muted)!important;
+  box-shadow:none!important;
+  cursor:pointer;
+  transition:background .25s cubic-bezier(.16,1,.3,1), color .25s ease, transform .15s cubic-bezier(.16,1,.3,1), box-shadow .25s ease!important;
+}
+.composer #sendBtn .send-icon{
+  display:block;
+  stroke:currentColor;
+  transition:transform .25s cubic-bezier(.34,1.56,.64,1);
+  transform-origin:center center;
+}
+/* 有输入内容或待传文件时：高亮点亮 + 蓝紫渐变浮现 */
+.composer #sendBtn.has-content{
+  background:linear-gradient(135deg,var(--primary),var(--primary2))!important;
+  color:#fff!important;
+  box-shadow:0 6px 18px -2px rgba(79,124,255,.45), inset 0 1px 0 rgba(255,255,255,.3)!important;
+}
+.composer #sendBtn.has-content:hover{
+  transform:scale(1.03)!important;
+  box-shadow:0 8px 22px -2px rgba(79,124,255,.55), inset 0 1px 0 rgba(255,255,255,.4)!important;
+}
+.composer #sendBtn.has-content:hover .send-icon{
+  transform:translateX(2px) translateY(-2px) scale(1.1);
+}
+.composer #sendBtn:active{
+  transform:scale(.92)!important;
+}
+/* 发送瞬时弹射动画 */
+@keyframes planeLaunch{
+  0%{transform:translate(0, 0) scale(1); opacity:1}
+  40%{transform:translate(8px, -8px) scale(.7); opacity:0}
+  41%{transform:translate(-8px, 8px) scale(.6); opacity:0}
+  100%{transform:translate(0, 0) scale(1); opacity:1}
+}
+.composer #sendBtn.is-sending .send-icon{
+  animation:planeLaunch .42s cubic-bezier(.16,1,.3,1) both;
+}
+/* 私人模式下点亮为专属淡雅紫灰渐变 */
+body.private-mode .composer #sendBtn.has-content{
+  background:linear-gradient(135deg,#9d8ce0,#b4a3ec)!important;
+  box-shadow:0 6px 18px -2px rgba(157,140,224,.45), inset 0 1px 0 rgba(255,255,255,.3)!important;
+}
+@media(max-width:720px){
+  .composer #sendBtn{
+    padding:8px 14px!important;
+    font-size:13.5px!important;
+  }
+}
+
+/* ===== 网盘页底部搜索按钮动效 ===== */
+.files-page .file-bottom-bar .file-search-btn{
+  display:inline-flex!important;
+  align-items:center!important;
+  justify-content:center!important;
+  gap:5px!important;
+  border-radius:999px!important;
+  padding:8px 16px!important;
+  font-weight:600!important;
+  min-width:0!important;
+  flex:0 0 auto!important;
+  border:0!important;
+  background:rgba(102,119,153,.18)!important;
+  color:var(--muted)!important;
+  box-shadow:none!important;
+  cursor:pointer;
+  transition:background .25s cubic-bezier(.16,1,.3,1), color .25s ease, transform .15s cubic-bezier(.16,1,.3,1), box-shadow .25s ease!important;
+}
+.files-page .file-bottom-bar .file-search-btn .search-icon{
+  display:block;
+  stroke:currentColor;
+  transition:transform .25s cubic-bezier(.34,1.56,.64,1);
+}
+/* 有搜索关键词或选择了类型筛选时点亮 */
+.files-page .file-bottom-bar .file-search-btn.has-filter{
+  background:linear-gradient(135deg,var(--primary),var(--primary2))!important;
+  color:#fff!important;
+  box-shadow:0 6px 18px -2px rgba(79,124,255,.45), inset 0 1px 0 rgba(255,255,255,.3)!important;
+}
+.files-page .file-bottom-bar .file-search-btn.has-filter:hover{
+  transform:scale(1.03)!important;
+  box-shadow:0 8px 22px -2px rgba(79,124,255,.55), inset 0 1px 0 rgba(255,255,255,.4)!important;
+}
+.files-page .file-bottom-bar .file-search-btn.has-filter:hover .search-icon{
+  transform:scale(1.15) rotate(8deg);
+}
+.files-page .file-bottom-bar .file-search-btn:active{
+  transform:scale(.92)!important;
+}
+/* 点击搜索时的脉冲微弹动画 */
+@keyframes searchPulse{
+  0%{transform:scale(1)}
+  35%{transform:scale(1.12)}
+  100%{transform:scale(1)}
+}
+.files-page .file-bottom-bar .file-search-btn.is-searching .search-icon{
+  animation:searchPulse .35s cubic-bezier(.34,1.56,.64,1) both;
+}
+@media(max-width:720px){
+  .files-page .file-bottom-bar .file-search-btn{
+    padding:8px 13px!important;
+    font-size:13px!important;
+  }
+}
