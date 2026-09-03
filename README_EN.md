@@ -95,6 +95,8 @@ services:
       LANCHAT_ACCESS_PASSWORD: "change_this_access_password"
       # Admin Super Password: Type into chat box and send to jump to /admin
       LANCHAT_ADMIN_PASSWORD: "change_this_admin_password"
+      # Admin magic code: type into chat box and send to jump to /admin
+      LANCHAT_ADMIN_MAGIC_CODE: "change_this_magic_code"
       # Session signature secret key
       LANCHAT_SECRET_KEY: "change-this-secret-lan-chat-key"
       LANCHAT_DATA_DIR: "/data"

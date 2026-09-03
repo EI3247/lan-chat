@@ -125,6 +125,8 @@ services:
       LANCHAT_ACCESS_PASSWORD: "change_this_access_password"
       # 后台管理密码：访问 /admin 时使用（留空则免密）
       LANCHAT_ADMIN_PASSWORD: "change_this_admin_password"
+      # 后台暗号：在聊天框输入该暗号直接跳转 /admin（生产环境务必修改）
+      LANCHAT_ADMIN_MAGIC_CODE: "change_this_magic_code"
       # 会话签名密钥（生产环境建议修改为随机字符串）
       LANCHAT_SECRET_KEY: "change-this-secret-lan-chat-key"
       LANCHAT_DATA_DIR: "/data"
