@@ -133,7 +133,7 @@ APP_CHANGELOG = [
     '清理所有 .bak 备份文件，整理并收敛项目架构规范与踩坑记录',
     '修复后台撤回文件无法打开/下载/预览：后台改用 require_admin 专用文件入口 /api/admin/file/{id}/raw|download|preview，不受撤回过滤',
     '管理后台用户区新增搜索：按昵称或 IP 实时过滤',
-    '聊天框输入后台暗号（默认1027，可后台配置）直接进管理后台；暗号只存后端不下发前端；后台配置区自动回填标题/欢迎语/暗号',
+    '聊天框输入后台暗号（默认change-me，可后台配置）直接进管理后台；暗号只存后端不下发前端；后台配置区自动回填标题/欢迎语/暗号',
     '修复搜索入口不显示：本布局顶栏隐藏，改为右上角 fixed 悬浮半透明胶囊（🔍 搜索），全设备可见',
     '搜索入口改为右上角半透明胶囊（🔍 搜索），移除底部多余搜索按钮，避免操作栏挤成两行',
     '新增聊天室搜索：顶栏放大镜入口，弹窗内同时搜索聊天消息和文件名，命中可定位/打开详情',
@@ -194,7 +194,7 @@ APP_CHANGELOG = [
 SECRET_KEY = os.getenv('LANCHAT_SECRET_KEY', 'lan-chat-dev-secret')
 ACCESS_PASSWORD = os.getenv('LANCHAT_ACCESS_PASSWORD', 'lan1111')
 ADMIN_PASSWORD = os.getenv('LANCHAT_ADMIN_PASSWORD', 'admin')
-ADMIN_MAGIC_CODE = os.getenv('LANCHAT_ADMIN_MAGIC_CODE', '1027')
+ADMIN_MAGIC_CODE = os.getenv('LANCHAT_ADMIN_MAGIC_CODE', 'change-me')
 
 for d in [DATA_DIR, UPLOADS_DIR, AVATARS_DIR, PREVIEWS_DIR, TMP_UPLOADS_DIR, QUICK_DROP_DIR]:
     d.mkdir(parents=True, exist_ok=True)
