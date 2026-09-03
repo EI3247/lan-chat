@@ -638,8 +638,8 @@ mark.kw-hit{background:linear-gradient(180deg,#fff3a0,#ffe14d);color:#5a4500;bor
   .composer{left:auto;right:auto;width:min(1160px,calc(100vw - 28px));margin-left:auto;margin-right:auto;left:50%;transform:translateX(-50%)}
 }
 /* 消息流滚动区垫高：最后的内容可以滚进输入框下方，形成穿透效果 */
-.messages{padding-bottom:132px!important}
-@media(max-width:720px){.messages{padding-bottom:120px!important}}
+.messages{padding-bottom:112px!important}
+@media(max-width:720px){.messages{padding-bottom:106px!important}}
 
 /* ===== 一键到底悬浮球：钉在输入框上方，不再重叠 ===== */
 .scroll-bottom-fab{
@@ -654,7 +654,7 @@ mark.kw-hit{background:linear-gradient(180deg,#fff3a0,#ffe14d);color:#5a4500;bor
 
 /* ===== 底部穿透过渡自然化：消除"实体长条"感 ===== */
 .messages{
-  padding-bottom:128px!important;
+  padding-bottom:112px!important;
   -webkit-mask-image:linear-gradient(to bottom,#000 calc(100% - 120px),rgba(0,0,0,.35) calc(100% - 60px),rgba(0,0,0,.12) 100%);
   mask-image:linear-gradient(to bottom,#000 calc(100% - 120px),rgba(0,0,0,.35) calc(100% - 60px),rgba(0,0,0,.12) 100%);
 }

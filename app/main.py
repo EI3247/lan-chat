@@ -39,9 +39,13 @@ DB_PATH = DATA_DIR / 'chat.db'
 SITE_TITLE = os.getenv('LANCHAT_SITE_TITLE', 'LAN Chat')
 WELCOME = os.getenv('LANCHAT_WELCOME', '局域网聊天室')
 FILES_TITLE = os.getenv('LANCHAT_FILES_TITLE', '文件目录')
-APP_VERSION = "202609032118"
-APP_UPDATED_AT = "2026-09-03 21:18"
+APP_VERSION = "202609032150"
+APP_UPDATED_AT = "2026-09-03 21:50"
 APP_CHANGELOG = [
+    '底部间隙微调至 6px。',
+    '底部间隙微调至 4px。',
+    '收紧底部留白后补 8px：最后一条消息与悬浮输入框不再重叠，留 2px 呼吸间隙。',
+    '修复最底部气泡「⋯」菜单被悬浮输入框遮挡：展开时按输入框实时位置按需借位上滑，收起即归还；静态底部留白收紧贴合。',
     '网盘页底部「搜索」按钮升级：配备放大镜线条 SVG，有搜索词或筛选时点亮渐变光泽，点击附带脉冲微弹与触觉按压反馈。',
     '发送按钮全面升级为动态交互态（Telegram 风格）：配备纸飞机线条 SVG，输入内容或选择附件时流光激活点亮，点击附带弹射微动与触觉按压反馈。',
     '调整底栏按钮位置：将「我的」与「模式切换」互换，最终顺序对齐为：我的 → 模式切换 → 网盘 → 发送。',
