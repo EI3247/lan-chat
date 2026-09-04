@@ -15,7 +15,7 @@ function updateModeUI(){ const priv=isPrivateMode(); document.querySelectorAll('
     }
   }
 }
-async function setChatMode(mode, opts={}){ const next=mode==='private'?'private':'public'; if(next===chatMode && !opts.force) { updateModeUI(); return; } chatMode=next; localStorage.setItem('lanchat_mode',chatMode); updateModeUI(); await loadMessages({forceScroll:true}); if(!opts.silent) toast(isPrivateMode()?'已切到私人模式：仅自己可见':'已切到群聊模式'); }
+async function setChatMode(mode, opts={}){ const next=mode==='private'?'private':'public'; if(next===chatMode && !opts.force) { updateModeUI(); return; } try{localStorage.setItem('lanchat_draft_'+(chatMode==='private'?'private':'public'),$('#messageInput').value)}catch{}; chatMode=next; localStorage.setItem('lanchat_mode',chatMode); updateModeUI(); restoreDraft(); await loadMessages({forceScroll:true}); }
 const $=s=>document.querySelector(s); const messagesEl=$('#messages');
 let autoScrollGeneration=0,lastMessageScrollIntentAt=0;
 function noteMessageScrollIntent(){lastMessageScrollIntentAt=Date.now();autoScrollGeneration++}
@@ -28,6 +28,11 @@ function showLogin(){ $('#login').classList.remove('hidden'); $('#app').classLis
 
 
 function showApp(){ $('#login').classList.add('hidden'); $('#app').classList.remove('hidden'); }
+function draftKey(){return 'lanchat_draft_'+(isPrivateMode()?'private':'public')}
+function saveDraft(){try{localStorage.setItem(draftKey(),$('#messageInput').value)}catch{}}
+function clearDraft(){try{localStorage.removeItem(draftKey())}catch{}}
+function restoreDraft(){try{const v=localStorage.getItem(draftKey())||'';const el=$('#messageInput');el.value=v;autoGrowComposer();if(v){el.focus();el.setSelectionRange(v.length,v.length)}}catch{}}
+const _origShowApp=showApp;showApp=function(){_origShowApp();restoreDraft()};
 
 let modalScrollY=0;
 function setModalLock(){ const open=!!document.querySelector('dialog[open]'); if(open){ if(!document.body.classList.contains('modal-open')) modalScrollY=window.scrollY||document.documentElement.scrollTop||0; document.documentElement.classList.add('modal-open'); document.body.classList.add('modal-open'); document.body.style.top=`-${modalScrollY}px`; } else { document.documentElement.classList.remove('modal-open'); document.body.classList.remove('modal-open'); document.body.style.top=''; if(modalScrollY) window.scrollTo(0,modalScrollY); modalScrollY=0; } }
@@ -110,7 +115,8 @@ function refreshDateDividers(){
   }
 }
 let hasMoreOlder=true, loadingOlder=false, oldestId=null;
-async function loadMessages(opts={}){let stick=opts.forceScroll || nearBottom() || messagesEl.childElementCount===0; const prevTop=messagesEl.scrollTop, prevH=messagesEl.scrollHeight; const d=await api(`/api/messages?limit=120&scope=${chatMode}`); messagesEl.innerHTML=''; messageStore.clear(); d.messages.forEach(m=>{ if(m&&m.id) messageStore.set(m.id,m); if(m&&m.file) rememberFile(m.file); messagesEl.insertAdjacentHTML('beforeend',renderMessage(m)) }); hasMoreOlder=d.messages.length>=120; oldestId=d.messages.length?d.messages[0].id:null; collapseLong(); bindMediaSettleScroll(); refreshDateDividers(); loadPinnedBanner(); if(stick) scrollBottomSoon(); else if(opts.keepView){messagesEl.scrollTop=prevTop+(messagesEl.scrollHeight-prevH)} if(typeof updateChatFab==='function')setTimeout(updateChatFab,60)}
+let hasMoreNewer=false, loadingNewer=false, newestId=null;
+async function loadMessages(opts={}){let stick=opts.forceScroll || nearBottom() || messagesEl.childElementCount===0; const prevTop=messagesEl.scrollTop, prevH=messagesEl.scrollHeight; const d=await api(`/api/messages?limit=60&scope=${chatMode}`); messagesEl.innerHTML=''; messageStore.clear(); d.messages.forEach(m=>{ if(m&&m.id) messageStore.set(m.id,m); if(m&&m.file) rememberFile(m.file); messagesEl.insertAdjacentHTML('beforeend',renderMessage(m)) }); hasMoreOlder=d.messages.length>=60; oldestId=d.messages.length?d.messages[0].id:null; hasMoreNewer=false; newestId=d.messages.length?d.messages[d.messages.length-1].id:null; collapseLong(); bindMediaSettleScroll(); refreshDateDividers(); loadPinnedBanner(); if(stick) scrollBottomSoon(); else if(opts.keepView){messagesEl.scrollTop=prevTop+(messagesEl.scrollHeight-prevH)} if(typeof updateChatFab==='function')setTimeout(updateChatFab,60)}
 async function loadOlder(){
   if(loadingOlder||!hasMoreOlder||!oldestId) return;
   loadingOlder=true; const loader=document.createElement('div'); loader.className='older-loader'; loader.textContent='加载更早的消息…'; messagesEl.prepend(loader);
@@ -120,7 +126,7 @@ async function loadOlder(){
     loader.remove();
     if(d.messages.length){
       const frag=document.createDocumentFragment();
-      d.messages.forEach(m=>{ if(m&&m.id) messageStore.set(m.id,m); if(m&&m.file) rememberFile(m.file); const tmp=document.createElement('template'); tmp.innerHTML=renderMessage(m); frag.appendChild(tmp.content.firstElementChild); });
+      d.messages.forEach(m=>{ if(m&&m.id) messageStore.set(m.id,m); if(m&&m.file) rememberFile(m.file); const tmp=document.createElement('template'); tmp.innerHTML=renderMessage(m); var _n=tmp.content.firstElementChild; if(_n){_n.classList.add('msg-fade-in'); frag.appendChild(_n);} });
       messagesEl.prepend(frag);
       oldestId=d.messages[0].id; hasMoreOlder=d.messages.length>=30;
       collapseLong(); refreshDateDividers(); loadPinnedBanner();
@@ -128,6 +134,21 @@ async function loadOlder(){
     } else { hasMoreOlder=false; }
   }catch{ loader.remove(); }
   finally{ loadingOlder=false; }
+}
+async function loadNewer(){
+  if(loadingNewer||!hasMoreNewer||!newestId) return;
+  loadingNewer=true;
+  try{
+    const d=await api(`/api/messages?after=${encodeURIComponent(newestId)}&limit=30&scope=${chatMode}`);
+    if(d.messages.length){
+      const stick=nearBottom();
+      d.messages.forEach(m=>{ if(m&&m.id) messageStore.set(m.id,m); if(m&&m.file) rememberFile(m.file); messagesEl.insertAdjacentHTML('beforeend',renderMessage(m)); });
+      newestId=d.messages[d.messages.length-1].id; hasMoreNewer=d.messages.length>=30;
+      collapseLong(); bindMediaSettleScroll(); refreshDateDividers(); loadPinnedBanner();
+      if(stick) scrollBottomSoon();
+    } else { hasMoreNewer=false; }
+  }catch{}
+  finally{ loadingNewer=false; }
 }
 messagesEl.addEventListener('scroll',onChatScroll,{passive:true});
 // 一键到底浮动按钮：两种触发——①手指从下往上滑（朝最新）；②翻历史时来新消息（显示 +N 累加）。均不常驻，停 2 秒淡出。
@@ -142,6 +163,7 @@ function updateChatFab(){ if(!_chatFab)return; if(chatAtBottom()){ hideChatFab()
 function onChatScroll(){
   const top=messagesEl.scrollTop; const delta=top-_lastTop; _lastTop=top;
   if(top<80 && hasMoreOlder && !loadingOlder) loadOlder();
+  if(chatAtBottom() && hasMoreNewer && !loadingNewer) loadNewer();
   if(chatAtBottom()){ hideChatFab(); clearNewCount(); return; }
   if(delta>2) showChatFab();        // 手指下→上（scrollTop 增大，朝底滚）→ 浮现
   else if(delta<-2) hideChatFab();  // 手指上→下（朝历史滚）→ 隐藏
@@ -149,10 +171,28 @@ function onChatScroll(){
 // 模拟人手快速滑到底的缓动动画
 function flickScroll(el, target, dur){ dur=dur||520; const start=el.scrollTop, dist=target-start, t0=performance.now(); function step(now){ let p=Math.min(1,(now-t0)/dur); p=1-Math.pow(1-p,3); el.scrollTop=start+dist*p; if(p<1) requestAnimationFrame(step); } requestAnimationFrame(step); }
 if(_chatFab){ _chatFab.onclick=()=>{ flickScroll(messagesEl, messagesEl.scrollHeight); clearNewCount(); hideChatFab(); }; }
-async function init(){const c=await api('/api/config').catch(()=>null); if(!c)return; document.title=c.title||'LAN Chat'; $('#siteTitle').textContent=c.title; $('#loginTitle').textContent=c.title; if(c.authed){me=c.user; showApp(); updateModeUI(); await loadMessages({forceScroll:true}); connectWs()}else showLogin()}
+async function tryJoinRoom(){
+  let tok=''; try{ tok=new URLSearchParams(location.search).get('join')||''; }catch(e){}
+  if(!tok) return false;
+  try{
+    const d=await api('/api/join',{method:'POST',body:JSON.stringify({token:tok})});
+    me=d.user; history.replaceState(null,'',location.pathname);
+    showApp(); updateModeUI(); await loadMessages({forceScroll:true}); connectWs(); return true;
+  }catch(e){ try{toast('邀请链接无效或已过期')}catch{} history.replaceState(null,'',location.pathname); return false; }
+}
+async function init(){const c=await api('/api/config').catch(()=>null); if(!c)return; document.title=c.title||'LAN Chat'; $('#siteTitle').textContent=c.title; $('#loginTitle').textContent=c.title; if(c.authed){me=c.user; showApp(); updateModeUI(); await loadMessages({forceScroll:true}); connectWs()}else if(!(await tryJoinRoom())) showLogin()}
 $('#loginForm').onsubmit=async e=>{e.preventDefault(); $('#loginError').textContent=''; try{const d=await api('/api/login',{method:'POST',body:JSON.stringify({password:$('#password').value})}); me=d.user; showApp(); updateModeUI(); await loadMessages({forceScroll:true}); connectWs()}catch(err){$('#loginError').textContent='密码不对'}}
 $('#sendBtn').onclick=send;
 $('#messageInput').addEventListener('input', autoGrowComposer);
+$('#messageInput').addEventListener('input', saveDraft);
+$('#messageInput').addEventListener('paste', e=>{
+  const items=(e.clipboardData&&e.clipboardData.items)||[];
+  const imgs=[]; for(const it of items){ if(it.kind==='file'&&(it.type||'').indexOf('image/')===0){ const f=it.getAsFile(); if(f) imgs.push(f); } }
+  if(!imgs.length) return; // 纯文字走默认粘贴
+  e.preventDefault();
+  imgs.forEach((f,i)=>{ try{ const ext=(f.type.split('/')[1]||'png').split('+')[0]; attachQueue.push(new File([f],'截图-'+Date.now()+(imgs.length>1?'-'+(i+1):'')+'.'+ext,{type:f.type})); }catch(err){ attachQueue.push(f); } });
+  renderAttachPreview(); toast(imgs.length>1?('已添加 '+imgs.length+' 张截图，点发送上传'):'截图已添加，点发送上传');
+});
 $('#messageInput').addEventListener('focus', autoGrowComposer);
 $('#messageInput').addEventListener('blur', autoGrowComposer);
 window.addEventListener('resize', ()=>{autoGrowComposer(); autoGrowTextarea($('#editText')); syncMediaCardWidths()});
@@ -249,7 +289,7 @@ async function runUploadLoop(){
   setUploadProgress(null); currentUpload=null; return d;
 }
 async function pauseUpload(){if(!currentUpload)return; currentUpload.status='pausing'; currentUpload.xhr?.abort(); setUploadProgress({name:currentUpload.file.name,loaded:currentUpload.loadedBytes,total:currentUpload.file.size,phase:'正在停止',speed:0,status:'uploading'}); $('#sendBtn').disabled=false}
-async function resumeUpload(){if(!currentUpload||currentUpload.status!=='paused')return; currentUpload.status='uploading'; $('#sendBtn').disabled=true; try{const d=await runUploadLoop(); if(d&&d.message){upsertMessage(d.message,{forceScroll:true}); $('#messageInput').value=''; autoGrowComposer()}}catch(e){if(e.aborted&&currentUpload&&currentUpload.status==='pausing'){currentUpload.status='paused'; setUploadProgress({name:currentUpload.file.name,loaded:currentUpload.loadedBytes,total:currentUpload.file.size,phase:'已停止',speed:0,status:'paused'}); $('#sendBtn').disabled=false}else if(!e.canceled){toast('继续上传失败'); $('#sendBtn').disabled=false}}}
+async function resumeUpload(){if(!currentUpload||currentUpload.status!=='paused')return; currentUpload.status='uploading'; $('#sendBtn').disabled=true; try{const d=await runUploadLoop(); if(d&&d.message){upsertMessage(d.message,{forceScroll:true}); ($('#messageInput').value='',clearDraft()); autoGrowComposer()}}catch(e){if(e.aborted&&currentUpload&&currentUpload.status==='pausing'){currentUpload.status='paused'; setUploadProgress({name:currentUpload.file.name,loaded:currentUpload.loadedBytes,total:currentUpload.file.size,phase:'已停止',speed:0,status:'paused'}); $('#sendBtn').disabled=false}else if(!e.canceled){toast('继续上传失败'); $('#sendBtn').disabled=false}}}
 async function cancelUpload(){const u=currentUpload; if(!u){clearAttach(); setUploadProgress(null); return} u.canceled=true; u.status='canceled'; u.xhr?.abort(); if(u.uploadId){try{await api(`/api/upload-session/${u.uploadId}/cancel`,{method:'POST',body:'{}'})}catch{}} currentUpload=null; clearAttach(); setUploadProgress(null); $('#sendBtn').disabled=false; toast('已取消上传')}
 $('#uploadProgress').onclick=e=>{if(e.target.closest('[data-upload-pause]')) pauseUpload(); if(e.target.closest('[data-upload-resume]')) resumeUpload(); if(e.target.closest('[data-upload-cancel]')) cancelUpload(); if(e.target.closest('[data-upload-retry]')) retryFailed(); if(e.target.closest('[data-upload-dismiss]')){failedBatch=null; setUploadProgress(null);}};
 async function runUploadQueue(files, text, priv){
@@ -269,7 +309,7 @@ async function runUploadQueue(files, text, priv){
     }
   }
   uploadQueueLabel='';
-  if(okCount){$('#messageInput').value=''; autoGrowComposer(); updateSendBtnState();}
+  if(okCount){($('#messageInput').value='',clearDraft()); autoGrowComposer(); updateSendBtnState();}
   return {failed, okCount};
 }
 function showFailedBanner(){
@@ -313,7 +353,7 @@ async function send(){
       const tempId='temp-'+Date.now()+'-'+Math.random().toString(36).slice(2,7);
       const tempMsg={id:tempId, user_id:me?.id, user:me, content:text, private:priv, reply_to_id:sendReplyId, reply:replyData, created_at:new Date().toISOString(), _pending:true};
       messageStore.set(tempId,tempMsg); messagesEl.insertAdjacentHTML('beforeend',renderMessage(tempMsg)); collapseLong(); scrollBottomSoon();
-      $('#messageInput').value=''; autoGrowComposer(); updateSendBtnState();
+      ($('#messageInput').value='',clearDraft()); autoGrowComposer(); updateSendBtnState();
       try{
         const d=await api('/api/messages',{method:'POST',body:JSON.stringify({content:text,private:priv,reply_to_id:sendReplyId})});
         $(`#m-${CSS.escape(tempId)}`)?.remove(); messageStore.delete(tempId);
@@ -447,7 +487,7 @@ $('#editTextFile') && ($('#editTextFile').onclick=()=>setTextFileMode('edit'));
 $('#cancelTextFile') && ($('#cancelTextFile').onclick=()=>{const dlg=$('#textFileDialog'), ta=$('#textFileContent'); if(!confirm('确定放弃本次修改？'))return; ta.value=dlg.dataset.original||''; setTextFileMode('view')});
 $('#saveTextFile') && ($('#saveTextFile').onclick=async()=>{if(!confirm('确定保存修改？'))return; const dlg=$('#textFileDialog'), fid=dlg.dataset.fid, ta=$('#textFileContent'), code=$('#textFileCode'); await api(`/api/file/${fid}/text`,{method:'PATCH',body:JSON.stringify({content:ta.value})}); dlg.dataset.original=ta.value; const ext=(dlg.dataset.fileName||'').split('.').pop().toLowerCase(); if(code) code.innerHTML=highlightCodeSyntax(ta.value, ext); toast('文本文件已保存'); setTextFileMode('view'); loadMessages({forceScroll:false}).catch(()=>{})});
 $('#editText').addEventListener('input', e=>autoGrowTextarea(e.target));
-async function openProfile(){selectedAvatar=null; if(pendingAvatarUrl){URL.revokeObjectURL(pendingAvatarUrl);} pendingAvatarBlob=null; pendingAvatarUrl=null; const p=await api('/api/presets'); $('#nicknameInput').value=me.nickname; $('#profileName').innerHTML=`${escapeHtml(me.nickname)} <span class="profile-ip">IP · ${escapeHtml(me.last_ip||'未知')}</span>`; const av=$('#profileAvatar'); if(me.avatar_type==='upload'){av.innerHTML=`<img src="${me.avatar_url}">`; av.dataset.full=me.avatar_url}else{av.innerHTML=escapeHtml(me.avatar_value); av.dataset.full=''} av.classList.toggle('avatar-zoomable', me.avatar_type==='upload'); $('#presetAvatars').innerHTML=p.avatars.map(a=>`<button class="avatar-choice" data-av="${a}">${a}</button>`).join(''); updateModeUI(); showDialog($('#profileDialog')); loadIdentity(); {const _ne=$('#nicknameError'); if(_ne){_ne.hidden=true;_ne.textContent='';}} const sc=$('#profileDialog').querySelector('.profile-scroll'); if(sc){sc.scrollTop=0; requestAnimationFrame(()=>{sc.scrollTop=0})}}
+async function openProfile(){selectedAvatar=null; if(pendingAvatarUrl){URL.revokeObjectURL(pendingAvatarUrl);} pendingAvatarBlob=null; pendingAvatarUrl=null; const p=await api('/api/presets'); $('#nicknameInput').value=me.nickname; $('#profileName').innerHTML=`<span class="profile-nick">${escapeHtml(me.nickname)}</span><span class="profile-ip">IP · ${escapeHtml(me.last_ip||'未知')}</span>`; const av=$('#profileAvatar'); if(me.avatar_type==='upload'){av.innerHTML=`<img src="${me.avatar_url}">`; av.dataset.full=me.avatar_url}else{av.innerHTML=escapeHtml(me.avatar_value); av.dataset.full=''} av.classList.toggle('avatar-zoomable', me.avatar_type==='upload'); $('#presetAvatars').innerHTML=p.avatars.map(a=>`<button class="avatar-choice" data-av="${a}">${a}</button>`).join(''); updateModeUI(); showDialog($('#profileDialog')); loadIdentity(); {const _ne=$('#nicknameError'); if(_ne){_ne.hidden=true;_ne.textContent='';}} const sc=$('#profileDialog').querySelector('.profile-scroll'); if(sc){sc.scrollTop=0; requestAnimationFrame(()=>{sc.scrollTop=0})}}
 
 let identityState={id_code:'',has_secret:false};
 async function loadIdentity(){try{const d=await api('/api/identity'); identityState=d; const cv=$('#idCodeView'); if(cv) cv.textContent=d.id_code||'-'; const st=$('#idSecretState'); if(st){st.textContent=d.has_secret?'🔑 已设密码':'⚠️ 未设密码'; st.classList.toggle('ok',d.has_secret)}}catch(e){}}
@@ -458,6 +498,26 @@ $('#saveIdentityBtn') && ($('#saveIdentityBtn').onclick=async()=>{const newCode=
 $('#doRecoverBtn') && ($('#doRecoverBtn').onclick=async()=>{if(!confirm('恢复后，当前设备现有身份发过的消息/文件会合并到该身份码名下，当前临时身份会被删除。继续？')) return; const body={id_code:$('#recoverCodeInput').value.trim(),secret:$('#recoverSecretInput').value}; $('#recoverError').textContent=''; try{const d=await api('/api/identity/recover',{method:'POST',body:JSON.stringify(body)}); me=d.user; closeDialog($('#recoverDialog')); closeDialog($('#profileDialog')); toast('已恢复身份'); await loadMessages({forceScroll:true})}catch(e){$('#recoverError').textContent=errText(e)||'恢复失败'}});
 $('#profileAvatar') && ($('#profileAvatar').onclick=()=>{const f=$('#profileAvatar').dataset.full; if(f) openLightbox(f, $('#profileDialog'), true)});
 $('#logoutBtn') && ($('#logoutBtn').onclick=async()=>{if(!confirm('确定退出当前设备？退出后需重新输入访问密码才能再次进入（不影响其他设备）。')) return; try{await api('/api/logout',{method:'POST'}); toast('已退出'); setTimeout(()=>{location.href='/'},600)}catch(e){toast('退出失败，请重试')}});
+
+let _qrTimer=null;
+async function renderJoinQR(){
+  const box=$('#joinQRBox'); if(!box) return;
+  if(_qrTimer){clearInterval(_qrTimer);_qrTimer=null}
+  box.innerHTML='<span class="muted">生成中…</span>';
+  const tip=$('#joinQRTip');
+  try{
+    const d=await api('/api/join-token');
+    const url=location.origin+location.pathname+'?join='+encodeURIComponent(d.token);
+    box.innerHTML='';
+    new QRCode(box,{text:url,width:168,height:168,correctLevel:QRCode.CorrectLevel.M});
+    let left=Math.max(1,(d.ttl||1800)-2);
+    const paint=()=>{ if(tip) tip.textContent='扫码直进无需密码，'+Math.floor(left/60)+'分'+String(left%60).padStart(2,'0')+'后失效'; };
+    paint();
+    _qrTimer=setInterval(()=>{ left--; if(left<=0){ clearInterval(_qrTimer); _qrTimer=null; renderJoinQR(); return; } paint(); },1000);
+  }catch(e){ box.innerHTML='<span class="muted">生成失败</span>'; }
+}
+$('#joinQRBtn') && ($('#joinQRBtn').onclick=()=>{ renderJoinQR(); showDialog($('#joinQRDialog')); });
+$('#joinQRRefresh') && ($('#joinQRRefresh').onclick=(e)=>{ e.preventDefault(); renderJoinQR(); });
 $('#profileBtn') && ($('#profileBtn').onclick=openProfile);
 $('#modeToggleBtn') && ($('#modeToggleBtn').onclick=()=>setChatMode(isPrivateMode()?'public':'private'));
 $('#profileBtnBottom') && ($('#profileBtnBottom').onclick=openProfile)
@@ -519,7 +579,7 @@ async function locateMessage(id){
       if(d.messages&&d.messages.length){
         messagesEl.innerHTML=''; messageStore.clear();
         d.messages.forEach(m=>{ if(m&&m.id) messageStore.set(m.id,m); if(m&&m.file) rememberFile(m.file); messagesEl.insertAdjacentHTML('beforeend',renderMessage(m)); });
-        oldestId=d.messages[0].id; hasMoreOlder=true;
+        oldestId=d.messages[0].id; hasMoreOlder=true; newestId=d.messages[d.messages.length-1].id; hasMoreNewer=true;
         collapseLong(); bindMediaSettleScroll(); refreshDateDividers(); loadPinnedBanner();
         el=$(`#m-${CSS.escape(id)}`);
       }
@@ -713,7 +773,7 @@ $('#saveProfile').onclick=async e=>{e.preventDefault();
     if(r.ok){const d=await r.json(); me.avatar_type='upload'; me.avatar_value=d.avatar_value; me.avatar_url=d.avatar_url}else{toast('头像上传失败'); return}
     if(pendingAvatarUrl)URL.revokeObjectURL(pendingAvatarUrl); pendingAvatarBlob=null; pendingAvatarUrl=null;
   }
-  const body={nickname:$('#nicknameInput').value}; if(selectedAvatar){body.avatar_type='preset'; body.avatar_value=selectedAvatar}
+  const _nn=($('#nicknameInput').value||'').trim(); if(_nn.length>12){const _ee=$('#nicknameError'); if(_ee){_ee.textContent='昵称最多 12 个字'; _ee.hidden=false;} else toast('昵称最多 12 个字'); return} const body={nickname:$('#nicknameInput').value}; if(selectedAvatar){body.avatar_type='preset'; body.avatar_value=selectedAvatar}
   const errEl=$('#nicknameError'); if(errEl){errEl.hidden=true; errEl.textContent='';}
   try{ const d=await api('/api/profile',{method:'POST',body:JSON.stringify(body)}); me=d.user; selectedAvatar=null; closeDialog($('#profileDialog')); await loadMessages({forceScroll:false}); }catch(err){ const msg=errText(err)||'保存失败'; if(errEl){errEl.textContent=msg; errEl.hidden=false; const ni=$('#nicknameInput'); ni&&ni.focus(); errEl.scrollIntoView({block:'nearest'});} else toast(msg); }}
 function selectElementText(el){ if(!el) return; const range=document.createRange(); range.selectNodeContents(el); const sel=window.getSelection(); sel.removeAllRanges(); sel.addRange(range) }
@@ -967,7 +1027,7 @@ async function connectWs(){
   let ws; try{ws=new WebSocket(wsUrl)}catch(e){scheduleWs();return}
   _ws=ws;
   ws.onopen=()=>{_wsAlive=true};
-  ws.onmessage=e=>{let d; try{d=JSON.parse(e.data)}catch{return} if(d.type==='remove'&&d.id){$(`#m-${CSS.escape(d.id)}`)?.remove(); messageStore.delete(d.id); return} if(d.type&&d.type.indexOf('p2p_')===0){try{handleP2pSignal(d)}catch(err){console.error('p2p signal error:',err,d)} return} if(d.message)upsertMessage(d.message)};
+  ws.onmessage=e=>{let d; try{d=JSON.parse(e.data)}catch{return} if(d.type==='ping'){try{ws.send(JSON.stringify({type:'pong'}))}catch{} return} if(d.type==='remove'&&d.id){$(`#m-${CSS.escape(d.id)}`)?.remove(); messageStore.delete(d.id); return} if(d.type&&d.type.indexOf('p2p_')===0){try{handleP2pSignal(d)}catch(err){console.error('p2p signal error:',err,d)} return} if(d.message)upsertMessage(d.message)};
   ws.onclose=()=>{_wsAlive=false; if(_ws===ws)_ws=null; scheduleWs()};
   ws.onerror=()=>{try{ws.close()}catch{}};
 }

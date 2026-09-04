@@ -4,8 +4,8 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=resizes-content" />
   <title>LAN Chat</title>
-  <link rel="icon" href="/favicon.ico?v=1788443406" />
-  <link rel="stylesheet" href="/static/style.css?v=1788443406" />
+  <link rel="icon" href="/favicon.ico?v=1788521515" />
+  <link rel="stylesheet" href="/static/style.css?v=1788521515" />
 </head>
 <body class="chat-page">
     <div id="login" class="login-screen hidden">
@@ -200,7 +200,8 @@
     <form method="dialog" class="dialog-card profile-card" onsubmit="event.preventDefault()">
       <div class="profile-scroll">
       <h2>我的资料</h2>
-      <div class="profile-preview"><span id="profileAvatar" class="avatar big">🙂</span><span id="profileName">-</span></div>
+      <!-- 头像区：头像 + 昵称/IP + 右侧扫码进房 -->
+      <div class="profile-preview"><span id="profileAvatar" class="avatar big">🙂</span><span id="profileName">-</span><button id="joinQRBtn" type="button" class="qr-side-btn" title="扫码进房" aria-label="扫码进房"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"></rect><rect x="14" y="3" width="7" height="7" rx="1"></rect><rect x="3" y="14" width="7" height="7" rx="1"></rect><path d="M14 14h3v3h-3zM21 14v.01M14 21v.01M18 18h3v3h-3z"></path></svg></button></div>
       <div class="mode-setting">
         <div class="label">聊天模式</div>
         <div id="modeSeg" class="mode-seg">
@@ -209,7 +210,7 @@
         </div>
         <p class="mode-tip muted">私人模式下发的消息和文件仅你自己可见（聊天页只看自己的私人内容、网盘页只看自己的私人文件）；切换不影响已发送的消息。</p>
       </div>
-      <label>昵称<input id="nicknameInput" maxlength="60" /></label>
+      <label>昵称<input id="nicknameInput" maxlength="12" placeholder="2~12 个字" /></label>
       <div id="nicknameError" class="field-error" hidden></div>
       <div>
         <div class="label">预设头像</div>
@@ -247,6 +248,18 @@
       <div class="dialog-actions">
         <button value="cancel" class="ghost">关闭</button>
         <button id="saveProfile" value="default" class="primary">保存</button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog id="joinQRDialog" class="dialog">
+    <form method="dialog" class="dialog-card" onsubmit="event.preventDefault()">
+      <h2>扫码进房</h2>
+      <div id="joinQRBox" class="qr-box"><span class="muted">生成中…</span></div>
+      <p class="mode-tip muted" id="joinQRTip">当前域名现场生成：局域网 IP 与外网穿透域名扫出来各进各的</p>
+      <div class="dialog-actions">
+        <button id="joinQRRefresh" type="button" class="ghost">重新生成</button>
+        <button value="cancel" class="ghost">关闭</button>
       </div>
     </form>
   </dialog>
@@ -342,6 +355,7 @@
     </form>
   </dialog>
 
-  <script src="/static/app.js?v=1788443406"></script>
+  <script src="/static/qrcode.min.js?v=1788521515"></script>
+<script src="/static/app.js?v=1788521515"></script>
 </body>
 </html>

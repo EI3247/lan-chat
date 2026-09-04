@@ -11,6 +11,7 @@ import sqlite3
 import hashlib
 import mimetypes
 import subprocess
+import asyncio
 from pathlib import Path
 from datetime import datetime, timezone, timedelta
 from typing import Optional, Any
@@ -39,9 +40,18 @@ DB_PATH = DATA_DIR / 'chat.db'
 SITE_TITLE = os.getenv('LANCHAT_SITE_TITLE', 'LAN Chat')
 WELCOME = os.getenv('LANCHAT_WELCOME', '局域网聊天室')
 FILES_TITLE = os.getenv('LANCHAT_FILES_TITLE', '文件目录')
-APP_VERSION = "202609032150"
-APP_UPDATED_AT = "2026-09-03 21:50"
+APP_VERSION = "202609041955"
+APP_UPDATED_AT = "2026-09-04 19:55"
 APP_CHANGELOG = [
+    '我的资料头像区重排：扫码进房改图文小块，IP胶囊去紫改灰。',
+    '模式切换去提示；搜索跳转后支持下滑续拉更新（双向翻页）。',
+    '扫码进房入口移到头像区右侧线条图标按钮，昵称/IP上下排列。',
+    '扫码进房改二级弹窗（IP下方按钮进入，每次打开重新签发）；有效期缩至30分钟；WS断线重连改静默。',
+    '新增粘贴截图直发 + 输入框草稿（群/私分开存）；后台文件支持按大小排序；我的资料页加扫码进房二维码（7天有效，改密码作废）。',
+    '清 73M 陈旧分片 + 3 孤儿文件；messages/files 加 4 复合索引；Hub 广播改并发；WS 加 60s 心跳清死连接；清前端死代码。',
+    '撤掉滚动 GPU 加速（移动端 WebView 合成层反而卡顿），保留加载过渡与去模糊。',
+    '上滑加载加平滑过渡：旋转环 + 新消息淡入；滚动 GPU 加速 + 气泡渲染隔离 + 去媒体条模糊。',
+    '聊天室首屏加载由 120 条降为 60 条，上滑每次续拉 30 条。',
     '底部间隙微调至 6px。',
     '底部间隙微调至 4px。',
     '收紧底部留白后补 8px：最后一条消息与悬浮输入框不再重叠，留 2px 呼吸间隙。',
@@ -307,6 +317,11 @@ def init_db():
     if 'secret_hash' not in ucols:
         con.execute('ALTER TABLE users ADD COLUMN secret_hash TEXT')
     con.execute('CREATE UNIQUE INDEX IF NOT EXISTS idx_users_id_code ON users(id_code) WHERE id_code IS NOT NULL')
+    # 首屏/上滑查询加速：覆盖 deleted+private+created_at 排序，避免全表扫描+临时B树
+    con.execute('CREATE INDEX IF NOT EXISTS idx_messages_scope_time ON messages(deleted, private, created_at DESC)')
+    con.execute('CREATE INDEX IF NOT EXISTS idx_messages_file_lookup ON messages(file_id, deleted, withdrawn, private)')
+    con.execute('CREATE INDEX IF NOT EXISTS idx_messages_pinned ON messages(pinned, deleted, withdrawn, private)')
+    con.execute('CREATE INDEX IF NOT EXISTS idx_files_user ON files(user_id, deleted, created_at DESC)')
     # 给老用户回填随机身份码（密码保持为空，首次设置时再设）。
     for r in con.execute("SELECT id FROM users WHERE id_code IS NULL OR id_code=''").fetchall():
         con.execute('UPDATE users SET id_code=? WHERE id=?', (gen_id_code(con), r['id']))
@@ -377,10 +392,11 @@ def norm_nick(s: str) -> str:
 
 
 def nickname_rule_error(nickname: str) -> Optional[str]:
-    # 昵称规则（不含查重）：非空、不能只有一个字。返回错误文案或 None。
+    # 昵称规则（不含查重）：非空、2~12 字。返回错误文案或 None。
     n = (nickname or '').strip()
     if not n: return '昵称不能为空'
     if len(n) < 2: return '昵称至少需要 2 个字'
+    if len(n) > 12: return '昵称最多 12 个字'
     return None
 
 def nickname_taken(con: sqlite3.Connection, nickname: str, exclude_uid: Optional[str] = None) -> bool:
@@ -402,14 +418,14 @@ def _rand_suffix2() -> str:
 
 def unique_nickname(con: sqlite3.Connection, base: str, exclude_uid: Optional[str] = None) -> str:
     # 生成未被占用的昵称：被占则加 2 位随机后缀（多次冲突递增）。
-    base = (base or '').strip()[:60] or '用户'
+    base = (base or '').strip()[:12] or '用户'
     if not nickname_taken(con, base, exclude_uid):
         return base
     for _ in range(40):
-        cand = f'{base}{_rand_suffix2()}'[:60]
+        cand = f'{base}{_rand_suffix2()}'[:14]
         if not nickname_taken(con, cand, exclude_uid):
             return cand
-    return f'{base}{uuid.uuid4().hex[:4].upper()}'[:60]
+    return f'{base}{uuid.uuid4().hex[:4].upper()}'[:16]
 
 
 def dedupe_existing_nicknames(con: sqlite3.Connection):
@@ -779,28 +795,27 @@ class Hub:
     def __init__(self): self.clients: dict[WebSocket, Optional[str]] = {}
     async def connect(self, ws: WebSocket, uid: Optional[str]=None): await ws.accept(); self.clients[ws]=uid
     def disconnect(self, ws: WebSocket): self.clients.pop(ws, None)
+    async def _safe_send(self, ws, payload):
+        try:
+            await ws.send_json(payload); return None
+        except Exception:
+            return ws
     async def broadcast(self, payload: dict):
-        dead=[]
-        for ws in list(self.clients.keys()):
-            try: await ws.send_json(payload)
-            except Exception: dead.append(ws)
-        for ws in dead: self.disconnect(ws)
+        results = await asyncio.gather(*[self._safe_send(ws, payload) for ws in list(self.clients.keys())])
+        for ws in results:
+            if ws is not None: self.disconnect(ws)
     async def broadcast_private(self, payload: dict, owner_uid: str):
         # 私人消息只发给属主自己的在线连接（cookie 解出的 uid 匹配）。
-        dead=[]
-        for ws, uid in list(self.clients.items()):
-            if uid != owner_uid: continue
-            try: await ws.send_json(payload)
-            except Exception: dead.append(ws)
-        for ws in dead: self.disconnect(ws)
+        targets = [ws for ws, uid in list(self.clients.items()) if uid == owner_uid]
+        results = await asyncio.gather(*[self._safe_send(ws, payload) for ws in targets])
+        for ws in results:
+            if ws is not None: self.disconnect(ws)
     async def send_to_user(self, payload: dict, target_uid: str):
         """定向发给某个用户的所有在线连接（用于 P2P 信令转发）。"""
-        dead=[]
-        for ws, uid in list(self.clients.items()):
-            if uid != target_uid: continue
-            try: await ws.send_json(payload)
-            except Exception: dead.append(ws)
-        for ws in dead: self.disconnect(ws)
+        targets = [ws for ws, uid in list(self.clients.items()) if uid == target_uid]
+        results = await asyncio.gather(*[self._safe_send(ws, payload) for ws in targets])
+        for ws in results:
+            if ws is not None: self.disconnect(ws)
     def is_online(self, uid: str) -> bool:
         """检查某用户是否在线（至少有一个活跃 WS 连接）。"""
         return any(u == uid for u in self.clients.values())
@@ -910,6 +925,44 @@ async def login(request: Request):
     con = db(); idc = gen_id_code(con); nick = unique_nickname(con, nick); con.execute('INSERT INTO users(id,nickname,avatar_type,avatar_value,id_code,created_at,updated_at,last_seen_at,last_ip) VALUES(?,?,?,?,?,?,?,?,?)', (uid,nick,'preset',avatar,idc,now_iso(),now_iso(),now_iso(),client_ip(request))); con.commit(); con.close()
     resp = JSONResponse({'ok': True, 'user': {'id':uid,'nickname':nick,'avatar_type':'preset','avatar_value':avatar}})
     resp.set_cookie('lanchat_auth', make_cookie({'uid':uid,'v':get_setting('access_version','1')}), max_age=10*365*24*3600, httponly=True, samesite='lax')
+    return resp
+
+JOIN_TOKEN_TTL = 30 * 60  # 二维码有效期30分钟
+
+@app.get('/api/join-token')
+def join_token(request: Request):
+    """签发扫码进房 token（需已登录；token 绑定 access_version，改密码即作废）"""
+    u = require_user(request)
+    payload = {'uid': u['id'], 'v': get_setting('access_version', '1'), 'ts': int(time.time())}
+    return {'token': make_cookie(payload), 'ttl': JOIN_TOKEN_TTL}
+
+@app.post('/api/join')
+async def join_room(request: Request):
+    """扫码进房：token 有效则直接种登录 cookie（新身份），无需输密码"""
+    try:
+        data = await request.json()
+    except Exception:
+        raise HTTPException(400, '参数错误')
+    token = str(data.get('token', ''))
+    try:
+        payload = serializer.loads(token)
+    except Exception:
+        raise HTTPException(403, '邀请已失效')
+    if not isinstance(payload, dict) or 'uid' not in payload:
+        raise HTTPException(403, '邀请已失效')
+    if payload.get('v') != get_setting('access_version', '1'):
+        raise HTTPException(403, '邀请已作废（密码已更换，请重新扫码）')
+    if int(time.time()) - int(payload.get('ts', 0)) > JOIN_TOKEN_TTL:
+        raise HTTPException(403, '邀请已过期（30分钟），请重新扫码')
+    uid = str(uuid.uuid4())
+    nick, avatar = random_profile()
+    con = db(); idc = gen_id_code(con); nick = unique_nickname(con, nick)
+    con.execute('INSERT INTO users(id,nickname,avatar_type,avatar_value,id_code,created_at,updated_at,last_seen_at,last_ip) VALUES(?,?,?,?,?,?,?,?,?)',
+        (uid, nick, 'preset', avatar, idc, now_iso(), now_iso(), now_iso(), client_ip(request)))
+    con.commit(); con.close()
+    resp = JSONResponse({'ok': True, 'user': {'id': uid, 'nickname': nick}})
+    resp.set_cookie('lanchat_auth', make_cookie({'uid': uid, 'v': get_setting('access_version', '1')}),
+        max_age=10*365*24*3600, httponly=True, samesite='lax')
     return resp
 
 @app.post('/api/logout')
@@ -1037,7 +1090,7 @@ def nickname_check(request: Request, nickname: str = ''):
 @app.post('/api/profile')
 async def profile(request: Request):
     u = require_user(request); data = await request.json()
-    nickname = str(data.get('nickname') or u['nickname']).strip()[:60] or u['nickname']
+    nickname = str(data.get('nickname') or u['nickname']).strip()[:12] or u['nickname']
     avatar_type = data.get('avatar_type') or u['avatar_type']; avatar_value = data.get('avatar_value') or u['avatar_value']
     if avatar_type not in ['preset','upload']: avatar_type='preset'
     if avatar_type == 'preset' and avatar_value not in PRESET_AVATARS: avatar_value = PRESET_AVATARS[0]
@@ -1643,9 +1696,20 @@ async def websocket(ws: WebSocket):
         except Exception:
             pass
     await hub.connect(ws, uid)
+    last_beat = time.time()
     try:
         while True:
-            raw = await ws.receive_text()
+            try:
+                raw = await asyncio.wait_for(ws.receive_text(), timeout=60)
+            except asyncio.TimeoutError:
+                # 60s 无任何帧：发 ping 探测，10s 无响应则断开清死连接
+                try:
+                    await asyncio.wait_for(ws.send_json({'type': 'ping'}), timeout=10)
+                    last_beat = time.time()
+                    continue
+                except Exception:
+                    break
+            last_beat = time.time()
             # P2P 信令转发：客户端发来的 JSON 消息，带 p2p 前缀类型的转发给目标用户
             try:
                 d = json.loads(raw)
@@ -1927,13 +1991,14 @@ async def admin_update_message(mid: str, request: Request):
     return {'ok':True}
 
 @app.get('/api/admin/files')
-def admin_files(request: Request, q: str='', kind: str='', page: int = 1, per_page: int = 30):
+def admin_files(request: Request, q: str='', kind: str='', sort: str='', page: int = 1, per_page: int = 30):
     require_admin(request); con=db(); sql='SELECT files.*, users.nickname FROM files LEFT JOIN users ON files.user_id=users.id WHERE files.deleted=0'; args=[]
     if q: sql += ' AND files.original_name LIKE ?'; args.append(f'%{q}%')
     if kind: sql += ' AND files.kind=?'; args.append(kind)
     total=con.execute(f'SELECT COUNT(*) FROM ({sql})',args).fetchone()[0]
     page=max(1,page); per_page=max(1,min(per_page,200)); offset=(page-1)*per_page
-    sql += ' ORDER BY files.created_at DESC LIMIT ? OFFSET ?'; args.extend([per_page,offset])
+    order_col = 'files.size DESC, files.created_at DESC' if sort == 'size' else 'files.created_at DESC'
+    sql += f' ORDER BY {order_col} LIMIT ? OFFSET ?'; args.extend([per_page,offset])
     rows=con.execute(sql,args).fetchall()
     # 哪些文件被私人消息引用（用于后台标识）
     priv_ids={r['file_id'] for r in con.execute('SELECT DISTINCT file_id FROM messages WHERE private=1 AND deleted=0 AND file_id IS NOT NULL').fetchall()}
