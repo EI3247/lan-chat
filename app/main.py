@@ -40,9 +40,11 @@ DB_PATH = DATA_DIR / 'chat.db'
 SITE_TITLE = os.getenv('LANCHAT_SITE_TITLE', 'LAN Chat')
 WELCOME = os.getenv('LANCHAT_WELCOME', '局域网聊天室')
 FILES_TITLE = os.getenv('LANCHAT_FILES_TITLE', '文件目录')
-APP_VERSION = "202609041955"
-APP_UPDATED_AT = "2026-09-04 19:55"
+APP_VERSION = "20260919090333"
+APP_UPDATED_AT = "2026-09-19 09:03"
 APP_CHANGELOG = [
+    '聊天页支持拖放上传：把文件直接拖到消息输入框即可加入待发送列表（PC 端）。',
+    '支持添加到手机主屏（PWA）：新增应用图标与清单，聊天页可直接装到主屏全屏使用。',
     '我的资料头像区重排：扫码进房改图文小块，IP胶囊去紫改灰。',
     '模式切换去提示；搜索跳转后支持下滑续拉更新（双向翻页）。',
     '扫码进房入口移到头像区右侧线条图标按钮，昵称/IP上下排列。',
@@ -215,7 +217,7 @@ app = FastAPI(title='LAN Chat')
 async def no_cache_middleware(request: Request, call_next):
     response = await call_next(request)
     path = request.url.path
-    if path in ['/', '/files', '/admin', '/favicon.ico'] or path.startswith('/static/'):
+    if path in ['/', '/files', '/admin', '/favicon.ico', '/manifest.json'] or path.startswith('/static/'):
         response.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate, max-age=0'
         response.headers['Pragma'] = 'no-cache'
         response.headers['Expires'] = '0'
@@ -229,6 +231,25 @@ def favicon():
         return FileResponse(ico, media_type='image/x-icon')
     svg = Path(__file__).parent / 'static' / 'favicon.svg'
     return FileResponse(svg, media_type='image/svg+xml')
+@app.get('/manifest.json')
+def web_manifest():
+    title = (get_setting('site_title', '') or SITE_TITLE or 'LAN Chat').strip()
+    name = re.sub(r'[^\w\-\u00b7 ]', '', title).strip() or 'LAN Chat'
+    return JSONResponse({
+        'name': name,
+        'short_name': name,
+        'start_url': '/',
+        'scope': '/',
+        'display': 'standalone',
+        'background_color': '#eef1f8',
+        'theme_color': '#4f7cff',
+        'icons': [
+            {'src': '/static/icon-192.png', 'sizes': '192x192', 'type': 'image/png', 'purpose': 'any'},
+            {'src': '/static/icon-512.png', 'sizes': '512x512', 'type': 'image/png', 'purpose': 'any'},
+            {'src': '/static/icon-maskable-512.png', 'sizes': '512x512', 'type': 'image/png', 'purpose': 'maskable'},
+        ],
+    })
+
 serializer = URLSafeSerializer(SECRET_KEY, salt='lan-chat')
 
 PRESET_AVATARS = ['🦊','🐼','🐯','🐸','🐵','🐧','🐳','🦄','🐱','🐶','🐰','🐨','🦁','🐙','🦉','🦋','🌵','🍄','🚀','⭐']

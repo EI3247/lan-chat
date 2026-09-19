@@ -1378,3 +1378,51 @@ document.addEventListener('click', e => {
     locateMessage(qc.dataset.quoteId);
   }
 }, true);
+
+// ================= 拖放上传（仅聊天页）=================
+// 把文件拖到消息输入框上即可加入待发送列表（PC 端鼠标拖拽）
+(function(){
+  var zone=document.querySelector('.composer');
+  if(!zone) return;
+  function hasFiles(e){
+    var dt=e.dataTransfer; if(!dt) return false;
+    var t=dt.types; if(!t) return false;
+    for(var i=0;i<t.length;i++){ if(t[i]==='Files') return true; }
+    return false;
+  }
+  function pick(e){
+    var dt=e.dataTransfer; if(!dt) return [];
+    var out=[], items=dt.items;
+    if(items && items.length){
+      for(var i=0;i<items.length;i++){
+        var it=items[i]; if(it.kind!=='file') continue;
+        try{ var en=it.webkitGetAsEntry && it.webkitGetAsEntry(); if(en && en.isDirectory) continue; }catch(err){}
+        var f=it.getAsFile(); if(f) out.push(f);
+      }
+    }
+    if(!out.length && dt.files){ for(var j=0;j<dt.files.length;j++) out.push(dt.files[j]); }
+    return out;
+  }
+  zone.addEventListener('dragover', function(e){
+    if(!hasFiles(e)) return;
+    e.preventDefault(); e.stopPropagation();
+    if(e.dataTransfer) e.dataTransfer.dropEffect='copy';
+    zone.classList.add('drag-over');
+  });
+  zone.addEventListener('dragleave', function(e){
+    if(e.relatedTarget && zone.contains(e.relatedTarget)) return;
+    zone.classList.remove('drag-over');
+  });
+  zone.addEventListener('drop', function(e){
+    e.preventDefault(); e.stopPropagation();
+    zone.classList.remove('drag-over');
+    var fs=pick(e); if(!fs.length) return;
+    attachQueue=attachQueue.concat(fs);
+    renderAttachPreview();
+    var ta=$('#messageInput'); if(ta) ta.focus();
+    toast(fs.length>1 ? ('已添加 '+fs.length+' 个文件，点发送上传') : ('已添加「'+fs[0].name+'」，点发送上传'));
+  });
+  // 拖到输入框以外的地方：只拦掉"浏览器直接打开文件"的默认行为，不接管
+  document.addEventListener('dragover', function(e){ if(hasFiles(e) && !zone.contains(e.target)) e.preventDefault(); });
+  document.addEventListener('drop', function(e){ if(hasFiles(e) && !zone.contains(e.target)) e.preventDefault(); });
+})();

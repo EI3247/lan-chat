@@ -31,6 +31,8 @@ Built on a single-file **FastAPI + SQLite** backend architecture and **vanilla H
 * **Adaptive Typography & Input**: Long messages collapse automatically with a gradient expander; the composer features a floating glass capsule design with auto-expanding height based on content.
 * **User Profile & Presence Detection**: Click an avatar to open a profile card showing join date, activity history, source IP, and recent messages, with real-time online status detection.
 
+* **Drag-and-Drop Upload (Desktop)**: Drop files straight onto the composer on a PC; they are queued and uploaded once confirmed. Folders are ignored automatically.
+
 ### 3. WebRTC P2P High-Speed File Transfer
 * **Direct Point-to-Point Streaming**: Establishes a direct WebRTC DataChannel between two LAN devices—data flows strictly between clients, **consuming zero server disk space or bandwidth**.
 * **Single-Connection Multi-File Queue**: Select multiple files in a single batch. The receiver confirms once, and the system automatically streams all files sequentially over a single connection.
@@ -66,6 +68,8 @@ Built on a single-file **FastAPI + SQLite** backend architecture and **vanilla H
   * CSS/JS modal fallback for environments lacking native HTML5 `<dialog>` support.
   * Removal of modern ES optional chaining syntax to avoid parse errors on legacy engines.
   * `/api/ws-token` token-based fallback authentication for WebViews that omit cookies during WebSocket handshakes.
+
+* **Installable as an App (PWA)**: Ships with a Web App Manifest and multi-size icons, so it can be installed as a standalone icon on Android Chrome, iOS Safari and desktop browsers (full screen, no browser chrome).
 
 ---
 
