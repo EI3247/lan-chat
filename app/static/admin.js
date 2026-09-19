@@ -537,7 +537,7 @@ document.addEventListener('click', async e => {
       const cmd = d.command || 'sudo bash update.sh';
       box.innerHTML = '发现新版本 ' + esc(d.latest) + '（当前 ' + esc(d.current) + '） · '
         + '<a href="' + esc(d.url) + '" target="_blank" rel="noopener">查看更新说明</a>'
-        + '<div class="upd-cmd"><span>在项目目录下执行：</span><code>' + esc(cmd) + '</code>'
+        + '<div class="upd-cmd"><span>在宿主机任意目录执行：</span><code>' + esc(cmd) + '</code>'
         + '<button type="button" class="ghost" id="copyUpdateCmd" data-cmd="' + esc(cmd) + '">复制</button></div>';
     }
     else{ box.className='upd-result ok'; box.textContent = '已是最新版本（' + d.current + '）'; }
