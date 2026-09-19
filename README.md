@@ -117,6 +117,10 @@ sudo bash install.sh
 
 装好之后，宿主机**任意目录**都可以直接使用 `lan-chat` 管理服务（更新 / 状态 / 日志 / 备份）。
 
+> 密码等配置推荐复制 `.env.example` 为 `.env` 后修改（Compose 会自动读取）：
+> `cp .env.example .env && vi .env`，改完执行 `docker compose up -d` 生效。
+> 密码项留空即免密登录。
+
 > 只想手动跑容器也可以：`docker compose up -d --build`，之后再单独执行
 > `sudo install -m 755 lan-chat /usr/local/bin/lan-chat` 把命令行工具装进系统。
 
@@ -128,7 +132,7 @@ services:
       context: ./app
       args:
         # apt 换国内源加速；海外服务器可在 .env 中设 APT_MIRROR=（留空）跳过
-        APT_MIRROR: "${APT_MIRROR:-mirrors.aliyun.com}"
+        APT_MIRROR: "${APT_MIRROR-mirrors.aliyun.com}"
     container_name: lan-chat
     restart: unless-stopped
     ports:
@@ -137,14 +141,14 @@ services:
     command: ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "1111", "--proxy-headers", "--forwarded-allow-ips", "*"]
     environment:
       # 以下各项均可在项目目录的 .env 文件中覆盖（参考 .env.example）
-      LANCHAT_ACCESS_PASSWORD: "${LANCHAT_ACCESS_PASSWORD:-change_this_access_password}"
-      LANCHAT_ADMIN_PASSWORD: "${LANCHAT_ADMIN_PASSWORD:-change_this_admin_password}"
-      LANCHAT_ADMIN_MAGIC_CODE: "${LANCHAT_ADMIN_MAGIC_CODE:-change_this_magic_code}"
-      LANCHAT_SECRET_KEY: "${LANCHAT_SECRET_KEY:-change-this-secret-lan-chat-key}"
+      LANCHAT_ACCESS_PASSWORD: "${LANCHAT_ACCESS_PASSWORD-change_this_access_password}"
+      LANCHAT_ADMIN_PASSWORD: "${LANCHAT_ADMIN_PASSWORD-change_this_admin_password}"
+      LANCHAT_ADMIN_MAGIC_CODE: "${LANCHAT_ADMIN_MAGIC_CODE-change_this_magic_code}"
+      LANCHAT_SECRET_KEY: "${LANCHAT_SECRET_KEY-change-this-secret-lan-chat-key}"
       LANCHAT_DATA_DIR: "/data"
-      LANCHAT_SITE_TITLE: "${LANCHAT_SITE_TITLE:-LAN Chat}"
-      LANCHAT_WELCOME: "${LANCHAT_WELCOME:-局域网聊天室}"
-      LANCHAT_FILES_TITLE: "${LANCHAT_FILES_TITLE:-文件目录}"
+      LANCHAT_SITE_TITLE: "${LANCHAT_SITE_TITLE-LAN Chat}"
+      LANCHAT_WELCOME: "${LANCHAT_WELCOME-局域网聊天室}"
+      LANCHAT_FILES_TITLE: "${LANCHAT_FILES_TITLE-文件目录}"
     volumes:
       - ./data:/data
 ```

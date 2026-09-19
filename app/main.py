@@ -40,10 +40,11 @@ DB_PATH = DATA_DIR / 'chat.db'
 SITE_TITLE = os.getenv('LANCHAT_SITE_TITLE', 'LAN Chat')
 WELCOME = os.getenv('LANCHAT_WELCOME', '局域网聊天室')
 FILES_TITLE = os.getenv('LANCHAT_FILES_TITLE', '文件目录')
-APP_VERSION = "20260919112149"
-APP_UPDATED_AT = "2026-09-19 11:21"
-APP_TAG = "v2.6.1"   # 与 GitHub Release 的 tag 对齐，用于后台「检查更新」比对
+APP_VERSION = "20260919113903"
+APP_UPDATED_AT = "2026-09-19 11:39"
+APP_TAG = "v2.6.2"   # 与 GitHub Release 的 tag 对齐，用于后台「检查更新」比对
 APP_CHANGELOG = [
+    '修复：compose 中需支持显式留空的变量由 ${VAR:-默认} 改为 ${VAR-默认}（带冒号时空值会被当未设置），海外服务器设 APT_MIRROR= 跳过 apt 换源、密码留空免密现在真正生效。',
     '修复批次：Dockerfile 端口与 compose 对齐为 1111、apt 换源改为可选构建参数；清理未使用导入。',
     '新增 install.sh：部署时一条命令同时装好 lan-chat 命令行工具并启动容器，装完即可在宿主机任意目录使用 lan-chat。',
     '修复：后台「检查更新」显示的更新命令改为 lan-chat update（此前仍显示旧命令 sudo bash update.sh，与新增的命令行工具不一致）。',
@@ -73,7 +74,6 @@ APP_CHANGELOG = [
     '调整底栏图标顺序并完善代码注释：将「我的」与「网盘」位置互换（模式切换 → 我的 → 网盘 → 发送），各图标按钮均添加清晰的中英文注释与 aria 标注。',
     '优化群聊模式图标：将双人轮廓替换为双气泡会话/群聊线条 SVG 图标，避免与「我的」人像图标产生视觉重叠。',
     '输入框底栏网盘左侧新增「群聊/私人模式」快捷切换按钮（双人/锁头线条 SVG），一键直达切换并直观展示当前可见性状态。',
-    '管理后台「版本」Tab 信息清理：移除文档条目并精简目录结构与维护说明。',
 ]
 SECRET_KEY = os.getenv('LANCHAT_SECRET_KEY', 'lan-chat-dev-secret')
 ACCESS_PASSWORD = os.getenv('LANCHAT_ACCESS_PASSWORD', 'lan1111')

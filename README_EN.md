@@ -87,6 +87,10 @@ The service will be accessible by default at `http://<your-lan-ip>:1111`.
 
 Once installed, the `lan-chat` command is available from any directory on the host (update / status / logs / backup).
 
+> Configuration is best done by copying `.env.example` to `.env` (Compose reads it automatically):
+> `cp .env.example .env && vi .env`, then `docker compose up -d` to apply.
+> Leaving a password empty disables that password check.
+
 #### `docker-compose.yml` Configuration
 ```yaml
 services:
@@ -95,7 +99,7 @@ services:
       context: ./app
       args:
         # apt 换国内源加速；海外服务器可在 .env 中设 APT_MIRROR=（留空）跳过
-        APT_MIRROR: "${APT_MIRROR:-mirrors.aliyun.com}"
+        APT_MIRROR: "${APT_MIRROR-mirrors.aliyun.com}"
     container_name: lan-chat
     restart: unless-stopped
     ports:
@@ -104,14 +108,14 @@ services:
     command: ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "1111", "--proxy-headers", "--forwarded-allow-ips", "*"]
     environment:
       # 以下各项均可在项目目录的 .env 文件中覆盖（参考 .env.example）
-      LANCHAT_ACCESS_PASSWORD: "${LANCHAT_ACCESS_PASSWORD:-change_this_access_password}"
-      LANCHAT_ADMIN_PASSWORD: "${LANCHAT_ADMIN_PASSWORD:-change_this_admin_password}"
-      LANCHAT_ADMIN_MAGIC_CODE: "${LANCHAT_ADMIN_MAGIC_CODE:-change_this_magic_code}"
-      LANCHAT_SECRET_KEY: "${LANCHAT_SECRET_KEY:-change-this-secret-lan-chat-key}"
+      LANCHAT_ACCESS_PASSWORD: "${LANCHAT_ACCESS_PASSWORD-change_this_access_password}"
+      LANCHAT_ADMIN_PASSWORD: "${LANCHAT_ADMIN_PASSWORD-change_this_admin_password}"
+      LANCHAT_ADMIN_MAGIC_CODE: "${LANCHAT_ADMIN_MAGIC_CODE-change_this_magic_code}"
+      LANCHAT_SECRET_KEY: "${LANCHAT_SECRET_KEY-change-this-secret-lan-chat-key}"
       LANCHAT_DATA_DIR: "/data"
-      LANCHAT_SITE_TITLE: "${LANCHAT_SITE_TITLE:-LAN Chat}"
-      LANCHAT_WELCOME: "${LANCHAT_WELCOME:-局域网聊天室}"
-      LANCHAT_FILES_TITLE: "${LANCHAT_FILES_TITLE:-文件目录}"
+      LANCHAT_SITE_TITLE: "${LANCHAT_SITE_TITLE-LAN Chat}"
+      LANCHAT_WELCOME: "${LANCHAT_WELCOME-局域网聊天室}"
+      LANCHAT_FILES_TITLE: "${LANCHAT_FILES_TITLE-文件目录}"
     volumes:
       - ./data:/data
 ```
