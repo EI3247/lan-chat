@@ -160,6 +160,28 @@ chmod +x start.sh
 
 ---
 
+## 🔄 更新升级
+
+更新只替换 `app/` 目录，`data/`（数据库与上传文件）和 `docker-compose.yml`（密码、端口等配置）不会被改动。
+
+```bash
+cd <项目目录>
+sudo bash update.sh
+```
+
+脚本会自动比对 GitHub 最新版本、备份当前版本、重建容器，并在健康检查失败时回滚到更新前的版本。
+
+也可以把命令行工具装进系统，之后在任意目录使用：
+
+```bash
+sudo install -m 755 lan-chat /usr/local/bin/lan-chat
+
+lan-chat update      # 检查并更新到最新版本
+lan-chat status      # 查看当前版本与容器状态
+lan-chat logs        # 查看最近日志
+lan-chat backup      # 手动备份当前版本
+```
+
 ## 📁 目录结构与数据持久化
 
 容器会将数据持久化在挂载的 `./data` 目录下：

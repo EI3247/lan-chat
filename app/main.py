@@ -40,10 +40,11 @@ DB_PATH = DATA_DIR / 'chat.db'
 SITE_TITLE = os.getenv('LANCHAT_SITE_TITLE', 'LAN Chat')
 WELCOME = os.getenv('LANCHAT_WELCOME', '局域网聊天室')
 FILES_TITLE = os.getenv('LANCHAT_FILES_TITLE', '文件目录')
-APP_VERSION = "20260919104315"
-APP_UPDATED_AT = "2026-09-19 10:43"
-APP_TAG = "v2.4.0"   # 与 GitHub Release 的 tag 对齐，用于后台「检查更新」比对
+APP_VERSION = "20260919105249"
+APP_UPDATED_AT = "2026-09-19 10:52"
+APP_TAG = "v2.5.0"   # 与 GitHub Release 的 tag 对齐，用于后台「检查更新」比对
 APP_CHANGELOG = [
+    '新增宿主机命令行工具 lan-chat：任意目录下执行 lan-chat update / status / logs / restart / backup / up，更新时自动同步安装。',
     '后台检查更新发现新版本时，直接给出可复制的更新命令；新增项目根目录 update.sh 更新脚本（自动备份/健康检查/失败回滚）。',
     '后台「版本」页更新日志收敛为最近 30 条，项目内列表同步精简。',
     '后台「版本」页新增更新日志列表（此前 APP_CHANGELOG 无任何展示入口）。',
@@ -73,7 +74,6 @@ APP_CHANGELOG = [
     '网盘页底部「聊天」按钮优化：采用纯线条对话气泡 SVG 图标（去文字），统一为圆形胶囊并对齐聊天室底栏的触觉反馈。',
     '底部工具栏升级纯线条图标模式：网盘（Folder 线条 SVG）与我的（User 线条 SVG）均去除中文文字，尺寸统一为精致圆形胶囊并强化按压反馈。',
     '优化底栏「我的」按钮：切换为方案 B（精致用户轮廓线条 SVG 图标 +「我的」文字），与回形针及二级菜单保持一致的工整线条风。',
-    '优化底栏「我的」按钮：展示当前用户迷你微型头像（支持上传图片/Emoji），并强化点击触觉微缩与高亮动画体验。',
 ]
 SECRET_KEY = os.getenv('LANCHAT_SECRET_KEY', 'lan-chat-dev-secret')
 ACCESS_PASSWORD = os.getenv('LANCHAT_ACCESS_PASSWORD', 'lan1111')

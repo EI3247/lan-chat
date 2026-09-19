@@ -130,6 +130,28 @@ Double-click **`run.bat`** in the repository root.
 
 ---
 
+## 🔄 Updating
+
+An update only replaces the `app/` directory; `data/` (database and uploaded files) and `docker-compose.yml` (passwords, ports, configuration) are left untouched.
+
+```bash
+cd <project directory>
+sudo bash update.sh
+```
+
+The script compares against the latest GitHub release, backs up the current version, rebuilds the container, and rolls back automatically if the health check fails.
+
+You can also install the CLI and use it from any directory:
+
+```bash
+sudo install -m 755 lan-chat /usr/local/bin/lan-chat
+
+lan-chat update      # check for and install the latest version
+lan-chat status      # show current version and container status
+lan-chat logs        # show recent logs
+lan-chat backup      # back up the current version
+```
+
 ## 📁 Directory Structure & Data Persistence
 
 All runtime data is persisted in the `./data` directory:

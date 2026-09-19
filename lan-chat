@@ -1,0 +1,102 @@
+#!/bin/bash
+# ============================================================
+# lan-chat —— 局域网聊天室命令行工具
+# 在宿主机任意目录下使用，例：lan-chat update
+# 安装位置：/usr/local/bin/lan-chat（项目里的 lan-chat 是源文件）
+# ============================================================
+set -uo pipefail
+
+# ---- 解析项目目录：环境变量 > /etc/lan-chat.conf > 当前目录 > 常见位置 ----
+DIR="${LANCHAT_DIR:-}"
+if [ -z "$DIR" ] && [ -f /etc/lan-chat.conf ]; then
+  # shellcheck disable=SC1091
+  . /etc/lan-chat.conf
+  DIR="${LANCHAT_DIR:-}"
+fi
+if [ -z "$DIR" ] && [ -f "./app/main.py" ]; then
+  DIR="$(pwd)"
+fi
+if [ -z "$DIR" ]; then
+  for c in /vol1/1000/docker/lan-chat /opt/lan-chat /srv/lan-chat "$HOME/lan-chat"; do
+    [ -f "$c/app/main.py" ] && DIR="$c" && break
+  done
+fi
+
+usage() {
+  cat <<EOF
+lan-chat —— 局域网聊天室命令行工具
+
+用法: lan-chat <命令>
+
+  update       检查并更新到最新版本（自动备份，重建失败自动回滚）
+  status       显示项目目录、当前版本、容器状态与数据量
+  restart      重启容器
+  logs [行数]  查看最近日志（默认 100 行）
+  backup       手动备份当前版本
+  up           原地重建并启动容器
+  help         显示本帮助
+
+项目目录: ${DIR:-（未找到）}
+可用 LANCHAT_DIR=/你的/路径 临时指定，
+或写入 /etc/lan-chat.conf：LANCHAT_DIR=/你的/路径
+EOF
+}
+
+if [ -z "$DIR" ] || [ ! -f "$DIR/app/main.py" ]; then
+  echo "!! 没找到 lan-chat 项目目录${DIR:+（当前解析为 $DIR）}"
+  echo "   指定方式：LANCHAT_DIR=/你的/路径 lan-chat <命令>"
+  exit 1
+fi
+
+CMD="${1:-help}"
+[ $# -gt 0 ] && shift
+
+ver() { grep -oP 'APP_TAG = "\K[^"]+' "$DIR/app/main.py" 2>/dev/null || echo "未知"; }
+
+case "$CMD" in
+  update)
+    exec sudo bash "$DIR/update.sh" "$@"
+    ;;
+  status)
+    echo "项目目录 : $DIR"
+    echo "本地版本 : $(ver)"
+    if command -v docker >/dev/null 2>&1; then
+      st="$(sudo docker ps -a --filter name=^lan-chat$ --format '{{.Status}}' 2>/dev/null || true)"
+      echo "容器状态 : ${st:-未运行}"
+      if [ -n "$st" ]; then
+        cnt="$(sudo docker exec lan-chat python3 -c "
+import sqlite3
+con=sqlite3.connect('/data/chat.db')
+print(' '.join('%s=%d' % (t, con.execute('SELECT COUNT(*) FROM '+t).fetchone()[0]) for t in ['users','messages','files']))
+" 2>/dev/null || true)"
+        [ -n "$cnt" ] && echo "数据统计 : $cnt"
+      fi
+    fi
+    ;;
+  restart)
+    exec sudo docker compose -f "$DIR/docker-compose.yml" restart
+    ;;
+  logs)
+    exec sudo docker logs --tail "${1:-100}" lan-chat
+    ;;
+  backup)
+    STAMP="$(date +%Y%m%d%H%M%S)"
+    B="$DIR/backup/manual-$STAMP"
+    mkdir -p "$B"
+    cp -a "$DIR/app" "$B/app"
+    [ -f "$DIR/docker-compose.yml" ] && cp -a "$DIR/docker-compose.yml" "$B/"
+    echo "已备份到：$B"
+    ;;
+  up)
+    exec sudo docker compose -f "$DIR/docker-compose.yml" up -d --build
+    ;;
+  help|--help|-h)
+    usage
+    ;;
+  *)
+    echo "未知命令：$CMD"
+    echo
+    usage
+    exit 1
+    ;;
+esac
