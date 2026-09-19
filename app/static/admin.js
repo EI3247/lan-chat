@@ -534,12 +534,33 @@ document.addEventListener('click', async e => {
     else if(!d.ok){ box.className='upd-result err'; box.textContent = d.message || '检查失败'; }
     else if(d.has_update){
       box.className='upd-result new';
+      const cmd = d.command || 'sudo bash update.sh';
       box.innerHTML = '发现新版本 ' + esc(d.latest) + '（当前 ' + esc(d.current) + '） · '
-        + '<a href="' + esc(d.url) + '" target="_blank" rel="noopener">查看更新说明</a>';
+        + '<a href="' + esc(d.url) + '" target="_blank" rel="noopener">查看更新说明</a>'
+        + '<div class="upd-cmd"><span>在项目目录下执行：</span><code>' + esc(cmd) + '</code>'
+        + '<button type="button" class="ghost" id="copyUpdateCmd" data-cmd="' + esc(cmd) + '">复制</button></div>';
     }
     else{ box.className='upd-result ok'; box.textContent = '已是最新版本（' + d.current + '）'; }
   }catch(err){
     if(box){ box.className='upd-result err'; box.textContent = '检查失败：' + ((err && err.message) ? err.message : '网络异常'); }
   }
   btn.disabled = false;
+});
+
+// 复制更新命令（http 下 navigator.clipboard 不可用，用 execCommand 兜底）
+document.addEventListener('click', e => {
+  const b = e.target.closest('#copyUpdateCmd');
+  if(!b) return;
+  const txt = b.dataset.cmd || 'sudo bash update.sh';
+  const done = () => { const t = b.textContent; b.textContent = '已复制'; setTimeout(() => { b.textContent = t; }, 1200); };
+  const fallback = () => {
+    const ta = document.createElement('textarea');
+    ta.value = txt; ta.style.position = 'fixed'; ta.style.left = '-9999px';
+    document.body.appendChild(ta); ta.select();
+    try{ document.execCommand('copy'); done(); }catch(err){ toast('复制失败，请手动选中复制'); }
+    ta.remove();
+  };
+  if(navigator.clipboard && window.isSecureContext){
+    navigator.clipboard.writeText(txt).then(done).catch(fallback);
+  } else { fallback(); }
 });
