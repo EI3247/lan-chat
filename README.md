@@ -177,15 +177,27 @@ sudo bash update.sh
 
 脚本会自动比对 GitHub 最新版本、备份当前版本、重建容器，并在健康检查失败时回滚到更新前的版本。
 
-也可以把命令行工具装进系统，之后在任意目录使用：
+登录后台也可以在「版本」页点「检查更新」，检测到新版本时会直接给出更新命令。
+
+没装命令行工具时（例如手动 `docker compose up` 部署的），也可以直接跑脚本：
 
 ```bash
-sudo install -m 755 lan-chat /usr/local/bin/lan-chat
+cd <项目目录>
+sudo bash update.sh      # 更新
+sudo bash install.sh     # 顺带把 lan-chat 命令装进系统
+```
 
+### 命令行工具
+
+部署时执行过 `install.sh` 就已经装好了，宿主机任意目录可用：
+
+```bash
 lan-chat update      # 检查并更新到最新版本
-lan-chat status      # 查看当前版本与容器状态
-lan-chat logs        # 查看最近日志
+lan-chat status      # 查看项目目录、当前版本、容器状态与数据量
+lan-chat logs [N]    # 查看最近日志
+lan-chat restart     # 重启容器
 lan-chat backup      # 手动备份当前版本
+lan-chat up          # 原地重建并启动容器
 ```
 
 ## 📁 目录结构与数据持久化

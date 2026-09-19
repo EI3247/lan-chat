@@ -144,15 +144,27 @@ sudo bash update.sh
 
 The script compares against the latest GitHub release, backs up the current version, rebuilds the container, and rolls back automatically if the health check fails.
 
-You can also install the CLI and use it from any directory:
+The admin panel also has a **Check for updates** button on the Version tab, which shows the update command when a newer release exists.
+
+If the CLI is not installed (e.g. you started the container manually with `docker compose up`), you can run the scripts directly:
 
 ```bash
-sudo install -m 755 lan-chat /usr/local/bin/lan-chat
+cd <project directory>
+sudo bash update.sh      # update
+sudo bash install.sh     # update and install the lan-chat command
+```
 
+### Command-line tool
+
+Installed automatically by `install.sh` during deployment; usable from any directory on the host:
+
+```bash
 lan-chat update      # check for and install the latest version
-lan-chat status      # show current version and container status
-lan-chat logs        # show recent logs
+lan-chat status      # show project dir, version, container status and data counts
+lan-chat logs [N]    # show recent logs
+lan-chat restart     # restart the container
 lan-chat backup      # back up the current version
+lan-chat up          # rebuild and start the container in place
 ```
 
 ## 📁 Directory Structure & Data Persistence
