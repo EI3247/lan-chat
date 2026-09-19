@@ -17,7 +17,7 @@ if [ -z "$DIR" ] && [ -f "./app/main.py" ]; then
   DIR="$(pwd)"
 fi
 if [ -z "$DIR" ]; then
-  for c in /vol1/1000/docker/lan-chat /opt/lan-chat /srv/lan-chat "$HOME/lan-chat"; do
+  for c in /opt/lan-chat /srv/lan-chat /usr/local/lan-chat "$HOME/lan-chat" "$HOME/docker/lan-chat"; do
     [ -f "$c/app/main.py" ] && DIR="$c" && break
   done
 fi
