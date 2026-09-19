@@ -14,10 +14,10 @@ import subprocess
 import asyncio
 from pathlib import Path
 from datetime import datetime, timezone, timedelta
-from typing import Optional, Any
+from typing import Optional
 
 from fastapi import FastAPI, Request, Response, UploadFile, File, Form, WebSocket, WebSocketDisconnect, HTTPException
-from fastapi.responses import HTMLResponse, JSONResponse, FileResponse, RedirectResponse, PlainTextResponse
+from fastapi.responses import HTMLResponse, JSONResponse, FileResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from itsdangerous import URLSafeSerializer, BadSignature
 try:
@@ -40,10 +40,11 @@ DB_PATH = DATA_DIR / 'chat.db'
 SITE_TITLE = os.getenv('LANCHAT_SITE_TITLE', 'LAN Chat')
 WELCOME = os.getenv('LANCHAT_WELCOME', '局域网聊天室')
 FILES_TITLE = os.getenv('LANCHAT_FILES_TITLE', '文件目录')
-APP_VERSION = "20260919111045"
-APP_UPDATED_AT = "2026-09-19 11:10"
-APP_TAG = "v2.6.0"   # 与 GitHub Release 的 tag 对齐，用于后台「检查更新」比对
+APP_VERSION = "20260919112149"
+APP_UPDATED_AT = "2026-09-19 11:21"
+APP_TAG = "v2.6.1"   # 与 GitHub Release 的 tag 对齐，用于后台「检查更新」比对
 APP_CHANGELOG = [
+    '修复批次：Dockerfile 端口与 compose 对齐为 1111、apt 换源改为可选构建参数；清理未使用导入。',
     '新增 install.sh：部署时一条命令同时装好 lan-chat 命令行工具并启动容器，装完即可在宿主机任意目录使用 lan-chat。',
     '修复：后台「检查更新」显示的更新命令改为 lan-chat update（此前仍显示旧命令 sudo bash update.sh，与新增的命令行工具不一致）。',
     '新增宿主机命令行工具 lan-chat：任意目录下执行 lan-chat update / status / logs / restart / backup / up，更新时自动同步安装。',
@@ -73,7 +74,6 @@ APP_CHANGELOG = [
     '优化群聊模式图标：将双人轮廓替换为双气泡会话/群聊线条 SVG 图标，避免与「我的」人像图标产生视觉重叠。',
     '输入框底栏网盘左侧新增「群聊/私人模式」快捷切换按钮（双人/锁头线条 SVG），一键直达切换并直观展示当前可见性状态。',
     '管理后台「版本」Tab 信息清理：移除文档条目并精简目录结构与维护说明。',
-    '网盘页底部「聊天」按钮优化：采用纯线条对话气泡 SVG 图标（去文字），统一为圆形胶囊并对齐聊天室底栏的触觉反馈。',
 ]
 SECRET_KEY = os.getenv('LANCHAT_SECRET_KEY', 'lan-chat-dev-secret')
 ACCESS_PASSWORD = os.getenv('LANCHAT_ACCESS_PASSWORD', 'lan1111')

@@ -91,24 +91,27 @@ Once installed, the `lan-chat` command is available from any directory on the ho
 ```yaml
 services:
   lan-chat:
-    build: ./app
+    build:
+      context: ./app
+      args:
+        # apt 换国内源加速；海外服务器可在 .env 中设 APT_MIRROR=（留空）跳过
+        APT_MIRROR: "${APT_MIRROR:-mirrors.aliyun.com}"
     container_name: lan-chat
     restart: unless-stopped
     ports:
-      - "1111:1111"
+      # 对外端口，可通过 .env 的 PORT 调整（容器内固定 1111）
+      - "${PORT:-1111}:1111"
     command: ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "1111", "--proxy-headers", "--forwarded-allow-ips", "*"]
     environment:
-      # Access Password: Required when joining chat (leave empty for public)
-      LANCHAT_ACCESS_PASSWORD: "change_this_access_password"
-      # Admin Super Password: Type into chat box and send to jump to /admin
-      LANCHAT_ADMIN_PASSWORD: "change_this_admin_password"
-      # Admin magic code: type into chat box and send to jump to /admin
-      LANCHAT_ADMIN_MAGIC_CODE: "change_this_magic_code"
-      # Session signature secret key
-      LANCHAT_SECRET_KEY: "change-this-secret-lan-chat-key"
+      # 以下各项均可在项目目录的 .env 文件中覆盖（参考 .env.example）
+      LANCHAT_ACCESS_PASSWORD: "${LANCHAT_ACCESS_PASSWORD:-change_this_access_password}"
+      LANCHAT_ADMIN_PASSWORD: "${LANCHAT_ADMIN_PASSWORD:-change_this_admin_password}"
+      LANCHAT_ADMIN_MAGIC_CODE: "${LANCHAT_ADMIN_MAGIC_CODE:-change_this_magic_code}"
+      LANCHAT_SECRET_KEY: "${LANCHAT_SECRET_KEY:-change-this-secret-lan-chat-key}"
       LANCHAT_DATA_DIR: "/data"
-      LANCHAT_SITE_TITLE: "LAN Chat"
-      LANCHAT_WELCOME: "Local Chatroom"
+      LANCHAT_SITE_TITLE: "${LANCHAT_SITE_TITLE:-LAN Chat}"
+      LANCHAT_WELCOME: "${LANCHAT_WELCOME:-局域网聊天室}"
+      LANCHAT_FILES_TITLE: "${LANCHAT_FILES_TITLE:-文件目录}"
     volumes:
       - ./data:/data
 ```
@@ -168,6 +171,20 @@ lan-chat up          # rebuild and start the container in place
 
 ## 📁 Directory Structure & Data Persistence
 
+Project root:
+
+```
+├── app/                # Backend source and frontend static assets
+│   └── scripts/        # Maintenance scripts (backfill_video_previews.py: regenerate missing video previews, run inside the container)
+├── data/               # Persistent data (see below)
+├── docker-compose.yml  # Container orchestration
+├── install.sh          # One-command deploy: install CLI + build & start container
+├── update.sh           # One-command update: backup → fetch latest → rebuild → rollback on failure
+├── lan-chat            # CLI tool source (installed into the system on deploy)
+├── start.sh / run.bat  # Bare-metal launchers (Linux/macOS and Windows)
+└── .env.example        # Environment variable template (copy to .env and edit)
+```
+
 All runtime data is persisted in the `./data` directory:
 
 ```
@@ -181,6 +198,15 @@ data/
 ```
 
 ---
+
+## ⚠️ Known Limitations
+
+- **P2P transfer works on the local network only**: no STUN/TURN servers are configured by default, so direct connections usually fail over public tunnels (the UI reports the peer as offline).
+- **No real client IP under Docker bridge mode**: the "source IP" in the admin panel shows the container bridge address. Use the bare-metal mode (`start.sh`) if you need real IP auditing.
+- **No end-to-end encryption**: messages and files are stored in plaintext on the server. Do not expose it directly to the internet; put it behind an HTTPS reverse proxy with access control if you must.
+- **No offline push notifications**: nothing is delivered while the page is closed.
+- **Full PWA install requires HTTPS**: over `http://<lan-ip>` Android and desktop Chrome only offer an "Add to home screen" shortcut rather than a full install. iOS Safari is unaffected.
+- **Update check requires internet access**: the admin "Check for updates" button and `lan-chat update` need to reach github.com; they simply fail on isolated networks (other features are unaffected).
 
 ## 🛠️ Tech Stack
 

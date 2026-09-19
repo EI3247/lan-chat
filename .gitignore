@@ -32,3 +32,6 @@ quick_drop/
 Thumbs.db
 .vscode/
 .idea/
+
+# 更新脚本产生的备份目录
+backup/

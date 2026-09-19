@@ -67,6 +67,7 @@ rm -rf app
 mv app.new app
 if [ -f "$SRC/update.sh" ]; then cp -f "$SRC/update.sh" update.sh; fi
 if [ -f "$SRC/lan-chat" ]; then cp -f "$SRC/lan-chat" lan-chat; fi
+if [ -f "$SRC/install.sh" ]; then cp -f "$SRC/install.sh" install.sh; fi
 if [ -f "$DIR/lan-chat" ]; then
   install -m 755 "$DIR/lan-chat" /usr/local/bin/lan-chat 2>/dev/null \
     && echo "   命令行工具已同步：lan-chat（宿主机任意目录可直接用）"

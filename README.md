@@ -124,24 +124,27 @@ sudo bash install.sh
 ```yaml
 services:
   lan-chat:
-    build: ./app
+    build:
+      context: ./app
+      args:
+        # apt 换国内源加速；海外服务器可在 .env 中设 APT_MIRROR=（留空）跳过
+        APT_MIRROR: "${APT_MIRROR:-mirrors.aliyun.com}"
     container_name: lan-chat
     restart: unless-stopped
     ports:
-      - "1111:1111"
+      # 对外端口，可通过 .env 的 PORT 调整（容器内固定 1111）
+      - "${PORT:-1111}:1111"
     command: ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "1111", "--proxy-headers", "--forwarded-allow-ips", "*"]
     environment:
-      # 访问密码：首次进入聊天室时使用（留空则免密）
-      LANCHAT_ACCESS_PASSWORD: "change_this_access_password"
-      # 后台管理密码：访问 /admin 时使用（留空则免密）
-      LANCHAT_ADMIN_PASSWORD: "change_this_admin_password"
-      # 后台暗号：在聊天框输入该暗号直接跳转 /admin（生产环境务必修改）
-      LANCHAT_ADMIN_MAGIC_CODE: "change_this_magic_code"
-      # 会话签名密钥（生产环境建议修改为随机字符串）
-      LANCHAT_SECRET_KEY: "change-this-secret-lan-chat-key"
+      # 以下各项均可在项目目录的 .env 文件中覆盖（参考 .env.example）
+      LANCHAT_ACCESS_PASSWORD: "${LANCHAT_ACCESS_PASSWORD:-change_this_access_password}"
+      LANCHAT_ADMIN_PASSWORD: "${LANCHAT_ADMIN_PASSWORD:-change_this_admin_password}"
+      LANCHAT_ADMIN_MAGIC_CODE: "${LANCHAT_ADMIN_MAGIC_CODE:-change_this_magic_code}"
+      LANCHAT_SECRET_KEY: "${LANCHAT_SECRET_KEY:-change-this-secret-lan-chat-key}"
       LANCHAT_DATA_DIR: "/data"
-      LANCHAT_SITE_TITLE: "LAN Chat"
-      LANCHAT_WELCOME: "局域网聊天室"
+      LANCHAT_SITE_TITLE: "${LANCHAT_SITE_TITLE:-LAN Chat}"
+      LANCHAT_WELCOME: "${LANCHAT_WELCOME:-局域网聊天室}"
+      LANCHAT_FILES_TITLE: "${LANCHAT_FILES_TITLE:-文件目录}"
     volumes:
       - ./data:/data
 ```
@@ -201,6 +204,20 @@ lan-chat up          # 原地重建并启动容器
 
 ## 📁 目录结构与数据持久化
 
+项目根目录：
+
+```
+├── app/                # 后端源码与前端静态资源
+│   └── scripts/        # 维护脚本（backfill_video_previews.py：重新生成缺失的视频预览图，容器内执行）
+├── data/               # 持久化数据（见下）
+├── docker-compose.yml  # 容器编排
+├── install.sh          # 一键部署：装命令行工具 + 构建启动容器
+├── update.sh           # 一键更新：备份 → 拉取最新版 → 重建 → 失败回滚
+├── lan-chat            # 命令行工具源码（部署时装入系统）
+├── start.sh / run.bat  # 宿主机原生模式启动脚本（Linux·macOS / Windows）
+└── .env.example        # 环境变量模板（复制为 .env 后修改）
+```
+
 容器会将数据持久化在挂载的 `./data` 目录下：
 
 ```
@@ -214,6 +231,15 @@ data/
 ```
 
 ---
+
+## ⚠️ 已知限制
+
+- **P2P 直传仅在局域网可用**：默认不配置 STUN/TURN，公网穿透后通常无法建立直连（界面会提示对方离线）。
+- **Docker bridge 模式下拿不到客户端真实 IP**：后台「来源 IP」显示的是容器网桥地址。需要真实 IP 审计请改用宿主机原生模式（`start.sh`）。
+- **无端到端加密**：消息与文件在服务端明文存储，请勿直接暴露到公网；确需外网访问建议套 HTTPS 反向代理并做好访问控制。
+- **无离线消息推送**：页面关闭后收不到通知。
+- **PWA 完整安装依赖 HTTPS**：通过 `http://内网IP` 访问时，Android / 桌面 Chrome 只提供「添加到主屏幕」的快捷方式，不提供完整安装；iOS Safari 不受影响。
+- **更新检查需要外网**：后台「检查更新」与 `lan-chat update` 需要能访问 github.com，纯内网环境会失败（不影响其他功能）。
 
 ## 🛠️ 技术栈
 
