@@ -138,8 +138,7 @@ Double-click **`run.bat`** in the repository root.
 An update only replaces the `app/` directory; `data/` (database and uploaded files) and `docker-compose.yml` (passwords, ports, configuration) are left untouched.
 
 ```bash
-cd <project directory>
-sudo bash update.sh
+lan-chat update
 ```
 
 The script compares against the latest GitHub release, backs up the current version, rebuilds the container, and rolls back automatically if the health check fails.

@@ -171,8 +171,7 @@ chmod +x start.sh
 更新只替换 `app/` 目录，`data/`（数据库与上传文件）和 `docker-compose.yml`（密码、端口等配置）不会被改动。
 
 ```bash
-cd <项目目录>
-sudo bash update.sh
+lan-chat update
 ```
 
 脚本会自动比对 GitHub 最新版本、备份当前版本、重建容器，并在健康检查失败时回滚到更新前的版本。
