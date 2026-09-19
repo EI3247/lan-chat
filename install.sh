@@ -56,7 +56,9 @@ done
 
 echo
 if [ "$OK" = "1" ]; then
-  IP="$(hostname -I 2>/dev/null | awk '{print $1}')"
+  # 优先取对外路由使用的本机 IP；退回 hostname -I 的第一个
+  IP="$(ip -4 route get 1.1.1.1 2>/dev/null | awk '{print $7; exit}')"
+  [ -z "$IP" ] && IP="$(hostname -I 2>/dev/null | awk '{print $1}')"
   echo "==> 部署完成"
   echo "    访问地址：http://${IP:-<本机IP>}:$PORT/"
   echo "    以后更新：lan-chat update"
