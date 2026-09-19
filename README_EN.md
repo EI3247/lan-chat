@@ -80,9 +80,12 @@ LAN Chat supports both **Docker Compose Deployment (Recommended)** and **Bare-Me
 ### Method 1: Docker Compose (Recommended)
 
 ```bash
-docker compose up -d
+# Run in the project directory: installs the lan-chat CLI and starts the container
+sudo bash install.sh
 ```
 The service will be accessible by default at `http://<your-lan-ip>:1111`.
+
+Once installed, the `lan-chat` command is available from any directory on the host (update / status / logs / backup).
 
 #### `docker-compose.yml` Configuration
 ```yaml

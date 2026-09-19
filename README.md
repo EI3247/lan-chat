@@ -110,9 +110,15 @@
 ### 方式一：使用 Docker Compose（推荐，容器隔离）
 
 ```bash
-docker compose up -d
+# 在项目目录下执行：会装好 lan-chat 命令行工具并启动容器
+sudo bash install.sh
 ```
 默认配置下服务将运行在 `http://你的局域网IP:1111`。
+
+装好之后，宿主机**任意目录**都可以直接使用 `lan-chat` 管理服务（更新 / 状态 / 日志 / 备份）。
+
+> 只想手动跑容器也可以：`docker compose up -d --build`，之后再单独执行
+> `sudo install -m 755 lan-chat /usr/local/bin/lan-chat` 把命令行工具装进系统。
 
 #### `docker-compose.yml` 配置说明
 ```yaml
