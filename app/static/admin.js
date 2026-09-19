@@ -262,7 +262,7 @@ function openFileInfo(fid){const f=fileStore.get(fid);if(!f){toast('文件信息
 async function init(){let s=await fetch('/api/admin/state').then(r=>r.json()); if(s.admin){showApp();loadAll()}else showLogin()}
 $('#adminLoginForm').onsubmit=async e=>{e.preventDefault();try{await api('/api/admin/login',{method:'POST',body:JSON.stringify({password:$('#adminPassword').value})});showApp();loadAll()}catch{$('#adminError').textContent='密码不对'}}
 $('#logoutAdmin').onclick=async()=>{await api('/api/admin/logout',{method:'POST'});showLogin()}
-async function loadConfig(){try{const c=await api('/api/admin/settings');$('#newTitle').value=c.site_title||'';$('#newFilesTitle').value=c.files_title||'';$('#newMagic').value=c.admin_magic_code||'';$('#newUploadLimit').value=c.upload_size_limit||''}catch(e){}}
+async function loadConfig(){try{const c=await api('/api/admin/settings');$('#newTitle').value=c.site_title||'';$('#newFilesTitle').value=c.files_title||'';$('#newMagic').value=c.admin_magic_code||'';$('#newUploadLimit').value=c.upload_size_limit||'';$('#newUpdateCheck').checked=(c.update_check_enabled||'1')!=='0'}catch(e){}}
 async function loadAll(){loadUsers(1);loadMsgs(1);loadFiles(1);loadConfig()}
 function pagerHTML(prefix,total,page,per_page){const pages=Math.ceil(total/per_page)||1;return `<div class="pager"><button class="ghost pager-prev" data-pager-prefix="${prefix}" ${page<=1?'disabled':''}>上一页</button><span class="pager-info">${page}/${pages}页 · 共${total}条</span><button class="ghost pager-next" data-pager-prefix="${prefix}" ${page>=pages?'disabled':''}>下一页</button></div>`}
 document.addEventListener('click',e=>{const b=e.target.closest('[data-pager-prefix]');if(!b||b.disabled)return;const p=b.dataset.pagerPrefix;if(b.classList.contains('pager-prev'))pageState[p]--;else if(b.classList.contains('pager-next'))pageState[p]++;if(p==='users')loadUsers(pageState.users);else if(p==='msgs')loadMsgs(pageState.msgs);else if(p==='files')loadFiles(pageState.files)});
@@ -434,7 +434,7 @@ $('#adminMessages').onclick=async e=>{
     updateMsgSelCount();
     return;
   }if(e.target?.id==='selectAllMsgs'){document.querySelectorAll('.msgSelect').forEach(x=>x.checked=e.target.checked);return} let b=e.target.closest('button'); if(!b)return; if(b.dataset.batch){let ids=selectedIds(); if(!ids.length){toast('先勾选消息');return} if(b.dataset.batch==='delete'&&!confirm(`确定删除选中的 ${ids.length} 条消息？`))return; await api('/api/admin/messages/batch',{method:'POST',body:JSON.stringify({ids,action:b.dataset.batch})}); toast('批量操作完成'); loadMsgs(pageState.msgs); return} let id=b.dataset.msave||b.dataset.mwithdraw||b.dataset.mrestore||b.dataset.mdel; if(b.dataset.msave){await api(`/api/admin/messages/${id}`,{method:'PATCH',body:JSON.stringify({content:document.querySelector(`[data-mtext="${id}"]`).value})}); toast('已保存')} if(b.dataset.mwithdraw){await api(`/api/admin/messages/${id}`,{method:'PATCH',body:JSON.stringify({withdrawn:1})}); toast('已撤回')} if(b.dataset.mrestore){await api(`/api/admin/messages/${id}`,{method:'PATCH',body:JSON.stringify({withdrawn:0,deleted:0})}); toast('已恢复显示')} if(b.dataset.mdel&&confirm('确定删除这条消息？删除后普通聊天不显示。')){await api(`/api/admin/messages/${id}`,{method:'PATCH',body:JSON.stringify({deleted:1})}); toast('已删除')} loadMsgs(pageState.msgs)}
-$('#saveSettings').onclick=async()=>{await api('/api/admin/settings',{method:'PATCH',body:JSON.stringify({access_password:$('#newAccess').value,admin_password:$('#newAdmin').value,site_title:$('#newTitle').value,files_title:$('#newFilesTitle').value,admin_magic_code:$('#newMagic').value,upload_size_limit:$('#newUploadLimit').value})});toast('配置已保存，密码变更会让旧登录失效');loadConfig()}
+$('#saveSettings').onclick=async()=>{await api('/api/admin/settings',{method:'PATCH',body:JSON.stringify({access_password:$('#newAccess').value,admin_password:$('#newAdmin').value,site_title:$('#newTitle').value,files_title:$('#newFilesTitle').value,admin_magic_code:$('#newMagic').value,upload_size_limit:$('#newUploadLimit').value,update_check_enabled:$('#newUpdateCheck').checked?'1':'0'})});toast('配置已保存，密码变更会让旧登录失效');loadConfig()}
 $('#clearMessages').onclick=async()=>{if(confirm('确定清空聊天记录？')){await api('/api/admin/clear-messages',{method:'POST'});toast('已清空');loadMsgs(1)}}
 init();
 
@@ -518,4 +518,28 @@ $('#cleanupEmptyUsersBtn') && ($('#cleanupEmptyUsersBtn').onclick = async () => 
     toast(`已清理 ${res.deleted || 0} 个空账户`);
     loadUsers(1);
   }catch(e){ toast('清理失败：' + (errText(e) || e.message || '')); }
+});
+
+// 后台版本页：手动检查更新（按钮由 /api/admin/info 动态注入，用事件委托）
+document.addEventListener('click', async e => {
+  const btn = e.target.closest('#checkUpdateBtn');
+  if(!btn) return;
+  const box = document.getElementById('updateResult');
+  btn.disabled = true;
+  if(box){ box.className = 'upd-result muted'; box.textContent = '正在检查…'; }
+  try{
+    const d = await api('/api/admin/check-update');
+    if(!box) return;
+    if(d.disabled){ box.className='upd-result muted'; box.textContent = d.message || '更新检查已关闭'; }
+    else if(!d.ok){ box.className='upd-result err'; box.textContent = d.message || '检查失败'; }
+    else if(d.has_update){
+      box.className='upd-result new';
+      box.innerHTML = '发现新版本 ' + esc(d.latest) + '（当前 ' + esc(d.current) + '） · '
+        + '<a href="' + esc(d.url) + '" target="_blank" rel="noopener">查看更新说明</a>';
+    }
+    else{ box.className='upd-result ok'; box.textContent = '已是最新版本（' + d.current + '）'; }
+  }catch(err){
+    if(box){ box.className='upd-result err'; box.textContent = '检查失败：' + ((err && err.message) ? err.message : '网络异常'); }
+  }
+  btn.disabled = false;
 });

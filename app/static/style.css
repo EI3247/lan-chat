@@ -2268,3 +2268,13 @@ body.private-mode .composer #sendBtn.has-content{
 
 /* 拖放上传：文件拖到输入框上时的高亮提示 */
 .composer.drag-over{outline:2px solid rgba(79,124,255,.8)!important;outline-offset:3px}
+
+/* 后台版本页：检查更新 + 更新日志 */
+.admin-page .upd-box{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:6px 0 2px}
+.admin-page .upd-result{font-size:12px;line-height:1.35;min-width:0;word-break:break-word}
+.admin-page .upd-result.ok{color:#16a34a}
+.admin-page .upd-result.new{color:#d97706;font-weight:700}
+.admin-page .upd-result.err{color:#dc2626}
+.admin-page .changelog{max-height:340px;overflow:auto;margin:6px 0 0;padding-left:18px;font-size:12.5px;line-height:1.45}
+.admin-page .changelog li{margin:0 0 3px}
+.admin-page .cfg-check{display:flex;align-items:center;gap:6px;font-size:13px;margin:2px 0 10px;line-height:1.3}

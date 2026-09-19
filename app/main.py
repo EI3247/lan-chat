@@ -40,9 +40,12 @@ DB_PATH = DATA_DIR / 'chat.db'
 SITE_TITLE = os.getenv('LANCHAT_SITE_TITLE', 'LAN Chat')
 WELCOME = os.getenv('LANCHAT_WELCOME', '局域网聊天室')
 FILES_TITLE = os.getenv('LANCHAT_FILES_TITLE', '文件目录')
-APP_VERSION = "20260919090333"
-APP_UPDATED_AT = "2026-09-19 09:03"
+APP_VERSION = "20260919102445"
+APP_UPDATED_AT = "2026-09-19 10:24"
+APP_TAG = "v2.3.0"   # 与 GitHub Release 的 tag 对齐，用于后台「检查更新」比对
 APP_CHANGELOG = [
+    '后台「版本」页新增更新日志列表（此前 APP_CHANGELOG 无任何展示入口）。',
+    '后台「版本」页新增「检查更新」按钮：手动向 GitHub 查询最新 Release 并对比版本。',
     '聊天页支持拖放上传：把文件直接拖到消息输入框即可加入待发送列表（PC 端）。',
     '支持添加到手机主屏（PWA）：新增应用图标与清单，聊天页可直接装到主屏全屏使用。',
     '我的资料头像区重排：扫码进房改图文小块，IP胶囊去紫改灰。',
@@ -851,6 +854,38 @@ async def broadcast_msg(msg: dict, kind: str = 'message'):
     else:
         await hub.broadcast({'type':kind,'message':msg})
 
+UPDATE_REPO = 'EI3247/lan-chat'
+
+@app.get('/api/admin/check-update')
+def admin_check_update(request: Request):
+    """手动检查更新：向 GitHub 拉最新 Release 的 tag 与本地 APP_TAG 比对。
+    局域网无外网时静默失败，不阻塞页面。"""
+    require_admin(request)
+    if get_setting('update_check_enabled', '1') == '0':
+        return {'ok': False, 'disabled': True, 'current': APP_TAG,
+                'message': '更新检查已在「配置」中关闭'}
+    if not APP_TAG:
+        return {'ok': False, 'current': '', 'message': '本地未标记版本 tag，无法比对'}
+    import urllib.request
+    api = 'https://api.github.com/repos/%s/releases/latest' % UPDATE_REPO
+    try:
+        req = urllib.request.Request(api, headers={
+            'User-Agent': 'lan-chat-update-check',
+            'Accept': 'application/vnd.github+json'})
+        with urllib.request.urlopen(req, timeout=6) as resp:
+            data = json.loads(resp.read().decode('utf-8'))
+    except Exception:
+        return {'ok': False, 'current': APP_TAG,
+                'message': '连接 GitHub 失败（可能没有外网或网络受限），请稍后再试'}
+    latest = str(data.get('tag_name') or '').strip()
+    if not latest:
+        return {'ok': False, 'current': APP_TAG, 'message': '没有取到版本信息'}
+    return {'ok': True, 'current': APP_TAG, 'latest': latest,
+            'has_update': latest != APP_TAG,
+            'name': str(data.get('name') or latest),
+            'published': str(data.get('published_at') or '')[:10],
+            'url': str(data.get('html_url') or ('https://github.com/%s/releases' % UPDATE_REPO))}
+
 @app.get('/api/admin/info', response_class=HTMLResponse)
 def admin_info_fragment(request: Request):
     # 管理后台「版本」tab 内嵌内容：与 /i 同源数据，HTML 片段
@@ -899,11 +934,17 @@ def admin_info_fragment(request: Request):
             return f'<a href="{html.escape(s)}" target="_blank" rel="noopener">{html.escape(s)}</a>'
         return html.escape(s)
     rows_html = ''.join(f'<div class="row"><span class="k">{html.escape(str(k))}</span><span class="v">{_render_v(v)}</span></div>' for k, v in info_rows)
+    chg_html = ''.join(f'<li>{html.escape(str(x))}</li>' for x in APP_CHANGELOG)
+    upd_html = ('<h2 class="sec">\U0001f504 检查更新</h2>'
+                '<div class="upd-box"><button id="checkUpdateBtn" type="button" class="primary">检查更新</button>'
+                f'<div id="updateResult" class="upd-result muted">当前版本 {html.escape(APP_TAG or APP_VERSION)}</div></div>')
     return (f'<div class="info-panel">'
             f'<p class="muted">版本 {html.escape(APP_VERSION)} · 更新于 {html.escape(APP_UPDATED_AT)}</p>'
             f'<div>{rows_html}</div>'
-            f'<h2 class="sec">✨ 项目功能</h2><ul class="feat">{feat_html}</ul>'
-            f'<h2 class="sec">📂 目录结构</h2>{dirs_html}</div>')
+            f'{upd_html}'
+            f'<h2 class="sec">\U0001f4dd 更新日志</h2><ul class="changelog">{chg_html}</ul>'
+            f'<h2 class="sec">\u2728 项目功能</h2><ul class="feat">{feat_html}</ul>'
+            f'<h2 class="sec">\U0001f4c2 目录结构</h2>{dirs_html}</div>')
 
 @app.get('/', response_class=HTMLResponse)
 def index():
@@ -1767,6 +1808,7 @@ def admin_get_settings(request: Request):
         'files_title': get_setting('files_title', FILES_TITLE),
         'admin_magic_code': get_setting('admin_magic_code', ADMIN_MAGIC_CODE),
         'upload_size_limit': get_setting('upload_size_limit', '0'),
+        'update_check_enabled': get_setting('update_check_enabled', '1'),
     }
 
 @app.get('/api/admin/users')
@@ -2104,6 +2146,7 @@ async def admin_settings(request: Request):
     if data.get('site_title') is not None and str(data.get('site_title')).strip(): set_setting('site_title', str(data['site_title']).strip()[:80])
     if data.get('files_title') is not None and str(data.get('files_title')).strip(): set_setting('files_title', str(data['files_title']).strip()[:80])
     if data.get('admin_magic_code') is not None: set_setting('admin_magic_code', str(data['admin_magic_code']).strip()[:60])
+    if data.get('update_check_enabled') is not None: set_setting('update_check_enabled', '0' if str(data.get('update_check_enabled')) in ('0', 'false', 'False', '') else '1')
     if data.get('upload_size_limit') is not None:
         v=str(data['upload_size_limit']).strip()
         set_setting('upload_size_limit', v if (v=='' or (v.isdigit() and int(v)>=0)) else '0')
