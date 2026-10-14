@@ -1,3 +1,6 @@
+const FI_EXT={apk:'apk',apks:'apk',apkm:'apk',xapk:'apk',aab:'apk',ipa:'apk',exe:'exe',com:'exe',bat:'exe',cmd:'exe',msi:'pkg',deb:'pkg',rpm:'pkg',pkg:'pkg',dmg:'pkg',apkpure:'apk',zip:'zip',rar:'zip','7z':'zip',tar:'zip',gz:'zip',tgz:'zip',bz2:'zip',xz:'zip',zst:'zip',jar:'zip',war:'zip',pdf:'pdf',doc:'doc',docx:'doc',rtf:'doc',odt:'doc',wps:'doc',xls:'xls',xlsx:'xls',csv:'xls',ods:'xls',et:'xls',ppt:'ppt',pptx:'ppt',odp:'ppt',dps:'ppt',txt:'txt',md:'txt',log:'txt',ini:'txt',conf:'txt',cfg:'txt',nfo:'txt',srt:'txt',ass:'txt',vtt:'txt',text:'txt',py:'code',js:'code',mjs:'code',ts:'code',jsx:'code',tsx:'code',java:'code',c:'code',cc:'code',cpp:'code',h:'code',hpp:'code',cs:'code',go:'code',rs:'code',php:'code',rb:'code',lua:'code',json:'code',xml:'code',html:'code',htm:'code',css:'code',scss:'code',vue:'code',sh:'code',bash:'code',zsh:'code',ps1:'code',toml:'code',yml:'code',yaml:'code',patch:'code',diff:'code',png:'img',jpg:'img',jpeg:'img',gif:'img',webp:'img',bmp:'img',avif:'img',svg:'img',heic:'img',heif:'img',ico:'img',mp4:'vid',mkv:'vid',avi:'vid',mov:'vid',webm:'vid',flv:'vid',wmv:'vid',m4v:'vid',rmvb:'vid',mpg:'vid',mpeg:'vid','3gp':'vid',mp3:'aud',wav:'aud',flac:'aud',aac:'aud',ogg:'aud',m4a:'aud',wma:'aud',opus:'aud',ape:'aud',ttf:'font',otf:'font',woff:'font',woff2:'font',eot:'font',db:'db',sqlite:'db',sqlite3:'db',sql:'db',mdb:'db',accdb:'db',iso:'iso',img:'iso',cue:'iso',nrg:'iso',vcd:'iso',key:'key',pem:'key',crt:'key',cer:'key',pfx:'key',p12:'key',pub:'key',ppk:'key'};
+function fiIcon(name,kind){var m=String(name||'').toLowerCase().match(/\.([a-z0-9]{1,8})$/);var k=m?FI_EXT[m[1]]:'';return '/static/icons/'+(k||(kind==='image'?'img':kind==='video'?'vid':kind==='audio'?'aud':kind==='text'?'txt':'file'))+'.svg'}
+function fiImg(name,kind,cls){return '<img class="fi-svg'+(cls?' '+cls:'')+'" src="'+fiIcon(name,kind)+'" alt="" loading="lazy" draggable="false">'}
 let me=null, selectedAvatar=null, editingId=null, attachQueue=[], currentUpload=null, failedBatch=null, uploadQueueLabel=''; let pendingAvatarBlob=null, pendingAvatarUrl=null; const expandedMessages=new Set(); const messageStore=new Map(); const fileStore=new Map();
 let chatMode=(localStorage.getItem('lanchat_mode')==='private')?'private':'public';
 function isPrivateMode(){return chatMode==='private'}
@@ -63,13 +66,13 @@ function renderMarkdown(text){
   out+=linkify(src.slice(last));
   return out
 }
-function mediaName(f,icon){let name=escapeHtml(f.name), meta=`${escapeHtml(f.kind)} · ${size(f.size)}`;return `<button type="button" class="media-name file-name-trigger" data-file-info="${f.id}"><span class="media-icon">${icon}</span><span class="media-text"><span class="media-title">${name}</span><span class="media-sub">${meta}</span></span></button>`}
+function mediaName(f){let name=escapeHtml(f.name), meta=`${escapeHtml(f.kind)} · ${size(f.size)}`;return `<button type="button" class="media-name file-name-trigger" data-file-info="${f.id}"><span class="media-icon">${fiImg(f.name,f.kind)}</span><span class="media-text"><span class="media-title">${name}</span><span class="media-sub">${meta}</span></span></button>`}
 function fileBlock(f){ if(!f) return ''; let view=f.public_view_url||f.view_url||f.url, name=escapeHtml(f.name), meta=`${escapeHtml(f.kind)} · ${size(f.size)}`;
-  if(f.kind==='image'){let src=f.preview_url||view; return `<div class="media-card"><div class="media"><img class="zoomable" data-full="${view}" src="${src}" alt="${name}" loading="lazy"></div>${mediaName(f,'🖼️')}</div>`}
-  if(f.kind==='video') return `<div class="media-card"><div class="media"><video src="${view}" ${f.preview_url?`poster="${f.preview_url}"`:''} controls preload="metadata"></video><button class="media-rate-btn" type="button" data-rate-btn title="切换倍速">1.0x</button></div>${mediaName(f,'🎬')}</div>`
-  if(f.kind==='audio') return `<div class="media-card audio-card"><div class="media"><audio src="${view}" controls preload="metadata"></audio><button class="media-rate-btn" type="button" data-rate-btn title="切换倍速">1.0x</button></div>${mediaName(f,'🎵')}</div>`
-  if(f.kind==='text') return `<div class="file-card"><div class="file-icon">📝</div><div class="file-info"><button type="button" class="fn file-name-trigger" data-file-info="${f.id}" title="${name}">${name}</button><div class="fs">${meta}</div></div></div>`
-  return `<div class="file-card"><div class="file-icon">📄</div><div class="file-info"><button type="button" class="fn file-name-trigger" data-file-info="${f.id}" title="${name}">${name}</button><div class="fs">${meta}</div></div></div>`
+  if(f.kind==='image'){let src=f.preview_url||view; return `<div class="media-card"><div class="media"><img class="zoomable" data-full="${view}" src="${src}" alt="${name}" loading="lazy"></div>${mediaName(f)}</div>`}
+  if(f.kind==='video') return `<div class="media-card"><div class="media"><video src="${view}" ${f.preview_url?`poster="${f.preview_url}"`:''} controls preload="metadata"></video><button class="media-rate-btn" type="button" data-rate-btn title="切换倍速">1.0x</button></div>${mediaName(f)}</div>`
+  if(f.kind==='audio') return `<div class="media-card audio-card"><div class="media"><audio src="${view}" controls preload="metadata"></audio><button class="media-rate-btn" type="button" data-rate-btn title="切换倍速">1.0x</button></div>${mediaName(f)}</div>`
+  if(f.kind==='text') return `<div class="file-card"><div class="file-icon">${fiImg(f.name,f.kind)}</div><div class="file-info"><button type="button" class="fn file-name-trigger" data-file-info="${f.id}" title="${name}">${name}</button><div class="fs">${meta}</div></div></div>`
+  return `<div class="file-card"><div class="file-icon">${fiImg(f.name,f.kind)}</div><div class="file-info"><button type="button" class="fn file-name-trigger" data-file-info="${f.id}" title="${name}">${name}</button><div class="fs">${meta}</div></div></div>`
 }
 function fileMenuButtons(f){ if(!f) return ''; let url=f.public_download_url||f.url, view=f.public_view_url||f.view_url||f.url;
   if(f.kind==='image') return `<a href="${url}" download>下载</a><button data-open="${view}">大图</button>`;
@@ -366,17 +369,17 @@ async function send(){
     }
   }catch(e){if(e&&e._handled){/* 已处理 */}else if(e.aborted&&currentUpload&&currentUpload.status==='pausing'){currentUpload.status='paused'; setUploadProgress({name:currentUpload.file.name,loaded:currentUpload.loadedBytes,total:currentUpload.file.size,phase:'已停止',speed:0,status:'paused'}); $('#sendBtn').disabled=false}else if(!e.canceled){setUploadProgress(null); let msg='发送失败'; try{const m=JSON.parse(e.message||'{}'); if(m.detail) msg=m.detail}catch{}; if(e.message&&e.message.includes('超过限制')) msg=e.message; toast(msg)}}finally{if(!currentUpload||currentUpload.status!=='uploading') $('#sendBtn').disabled=false}}
 function compactContent(m){ if(m.withdrawn) return '（已撤回）'; let text=(m.content||'').trim(); if(m.file) text += (text?'\n':'') + `[${m.file.kind}] ${m.file.name}`; return text || '（空消息）' }
-function infoFileName(f, icon){
+function infoFileName(f){
   const name=escapeHtml(f.name||'文件');
-  return `<button type="button" class="info-file-name" data-file-info="${escapeHtml(f.id)}" title="查看文件详情">${icon} <span>${name}</span></button>`;
+  return `<button type="button" class="info-file-name" data-file-info="${escapeHtml(f.id)}" title="查看文件详情">${fiImg(f.name,f.kind)} <span>${name}</span></button>`;
 }
 function infoMedia(m){
   if(!m.file || m.withdrawn) return '';
   const f=m.file, view=f.view_url||f.url, name=escapeHtml(f.name||'文件');
-  if(f.kind==='image') return `<div class="info-media"><img class="zoomable" data-full="${view}" src="${f.preview_url||view}" alt="${name}" loading="lazy"></div>${infoFileName(f,'🖼️')}`;
-  if(f.kind==='video') return `<div class="info-media"><video src="${view}" ${f.preview_url?`poster="${f.preview_url}"`:''} controls preload="metadata"></video></div>${infoFileName(f,'🎬')}`;
-  if(f.kind==='audio') return `<div class="info-media audio"><audio src="${view}" controls preload="metadata"></audio></div>${infoFileName(f,'🎵')}`;
-  if(f.kind==='text') return infoFileName(f,'📝'); return infoFileName(f,'📄');
+  if(f.kind==='image') return `<div class="info-media"><img class="zoomable" data-full="${view}" src="${f.preview_url||view}" alt="${name}" loading="lazy"></div>${infoFileName(f)}`;
+  if(f.kind==='video') return `<div class="info-media"><video src="${view}" ${f.preview_url?`poster="${f.preview_url}"`:''} controls preload="metadata"></video></div>${infoFileName(f)}`;
+  if(f.kind==='audio') return `<div class="info-media audio"><audio src="${view}" controls preload="metadata"></audio></div>${infoFileName(f)}`;
+  if(f.kind==='text') return infoFileName(f); return infoFileName(f);
 }
 async function openUserInfo(uid){
   try{
@@ -427,11 +430,11 @@ async function openTextFile(fid){
     showDialog(dlg);
   }catch(e){toast('文本文件打开失败')}
 }
-function fileKindIcon(kind){return kind==='image'?'🖼️':kind==='video'?'🎬':kind==='audio'?'🎵':kind==='text'?'📝':'📄'}
+function fileKindIcon(kind,name){return fiImg(name,kind)}
 function fileInfoMarkup(f, rows, openUrl, downUrl, escFn=escapeHtml){
   const kv=rows.map(([k,v])=>`<div class="info-row"><span>${escFn(k)}</span><code>${escFn(v||'')}</code></div>`).join('');
   return `<form method="dialog" class="dialog-card wide file-info-card" onsubmit="event.preventDefault()">
-    <div class="file-info-head"><div class="file-info-badge">${fileKindIcon(f.kind)}</div><div class="file-info-title"><h2>${escFn(f.name||'文件详情')}</h2><p>${escFn(f.kind||'file')} · ${size(f.size||0)} · ${escFn(f.uploader||'未知用户')}</p></div></div>
+    <div class="file-info-head"><div class="file-info-badge">${fileKindIcon(f.kind,f.name)}</div><div class="file-info-title"><h2>${escFn(f.name||'文件详情')}</h2><p>${escFn(f.kind||'file')} · ${size(f.size||0)} · ${escFn(f.uploader||'未知用户')}</p></div></div>
     <div class="file-info-scroll"><div class="file-info-grid">${kv}</div></div>
     <div class="dialog-actions"><button value="cancel" class="ghost">关闭</button><a class="ghost" href="${openUrl}" target="_blank" rel="noopener">打开</a><a class="primary" href="${downUrl}" download>下载</a></div>
   </form>`;
@@ -526,7 +529,7 @@ $('#profileBtnBottom') && ($('#profileBtnBottom').onclick=openProfile)
 let searchTimer=null, searchSeq=0, lastSearchQuery='';
 function highlightText(text, q){ const t=escapeHtml(text||''); if(!q) return t; try{ const re=new RegExp('('+q.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+')','ig'); return t.replace(re,'<mark>$1</mark>'); }catch{ return t } }
 function searchSnippet(content, q){ const text=(content||'').replace(/\s+/g,' ').trim(); if(!text) return '（空消息）'; const i=q?text.toLowerCase().indexOf(q.toLowerCase()):-1; if(i<0) return highlightText(text.slice(0,120)+(text.length>120?'…':''),q); const start=Math.max(0,i-30), end=Math.min(text.length,i+q.length+70); return (start>0?'…':'')+highlightText(text.slice(start,end),q)+(end<text.length?'…':''); }
-function searchFileIcon(kind){return kind==='image'?'🖼️':kind==='video'?'🎬':kind==='audio'?'🎵':kind==='text'?'📝':'📄'}
+function searchFileIcon(kind,name){return fiImg(name,kind)}
 async function runSearch(q){
   q=(q||'').trim(); const box=$('#searchResults'); const seq=++searchSeq; lastSearchQuery=q;
   if(!q){ box.innerHTML='<div class="empty-note">输入关键词开始搜索</div>'; return }
@@ -541,7 +544,7 @@ async function runSearch(q){
     if(!msgs.length && !files.length){ box.innerHTML='<div class="empty-note">没有找到匹配结果</div>'; return }
     if(files.length){
       html+=`<div class="search-group-title">文件 · ${files.length}</div>`;
-      html+=files.map(f=>`<button type="button" class="search-item search-file" data-search-file="${escapeHtml(f.id)}"><span class="search-file-icon">${searchFileIcon(f.kind)}</span><span class="search-file-main"><span class="search-file-name">${highlightText(f.name,q)}</span><span class="search-file-sub">${escapeHtml(f.kind||'file')} · ${size(f.size||0)} · ${escapeHtml(f.uploader||'未知')}</span></span></button>`).join('');
+      html+=files.map(f=>`<button type="button" class="search-item search-file" data-search-file="${escapeHtml(f.id)}"><span class="search-file-icon">${searchFileIcon(f.kind,f.name)}</span><span class="search-file-main"><span class="search-file-name">${highlightText(f.name,q)}</span><span class="search-file-sub">${escapeHtml(f.kind||'file')} · ${size(f.size||0)} · ${escapeHtml(f.uploader||'未知')}</span></span></button>`).join('');
     }
     if(msgs.length){
       html+=`<div class="search-group-title">聊天消息 · ${msgs.length}</div>`;

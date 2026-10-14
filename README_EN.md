@@ -53,6 +53,10 @@ Built on a single-file **FastAPI + SQLite** backend architecture and **vanilla H
   * Adapts from 2 columns on mobile devices up to 5 columns on ultra-wide screens.
   * Automatic thumbnail generation for video and images, with fine-tuned bottom mask transparency ensuring footer card readability.
 
+* **File Type Icons**:
+  * Ships **18 hand-drawn SVG type icons** (APK robot, EXE four-pane window, zip zipper, PDF/DOC/XLS/PPT documents, code, image/video/audio, font, database, disc image, key, and more), mapped automatically by file extension with a generic page icon as fallback.
+  * Rendered consistently in the drive list, chat attachment cards, file detail dialog and search results — still distinguishable by shape and color at 26px.
+
 ### 5. Hidden Admin Access & Management (`/admin`)
 * **Command-Triggered Admin Entry**: No administrative buttons or links are exposed in the interface. The administrator types the super admin password into the chat box and sends it to authenticate and jump directly to `/admin`.
 * **Full Data Auditing & Configuration**:

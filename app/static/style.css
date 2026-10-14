@@ -2283,3 +2283,26 @@ body.private-mode .composer #sendBtn.has-content{
 .admin-page .upd-cmd{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:6px 0 0;font-weight:400;color:inherit}
 .admin-page .upd-cmd code{background:rgba(102,119,153,.10);border:0;border-radius:6px;padding:2px 7px;font-size:12px}
 .admin-page .upd-cmd .ghost{padding:2px 10px;font-size:12px;min-width:0}
+
+/* ===== 文件类型 SVG 图标（2026-10-14 建立；尺寸定稿：图标自占满、不留双层外框；2026-10-14 再放大 10%）===== */
+.fi-svg{display:block;width:40px;height:40px;border-radius:11px;flex:0 0 auto;object-fit:contain}
+.file-icon{display:grid;place-items:center;line-height:0}
+.files-page .file-icon .fi-svg{width:42px;height:42px}
+.admin-file-item .file-icon .fi-svg{width:40px;height:40px}
+.bubble .file-card .file-icon .fi-svg{width:46px;height:46px}
+.bubble .media-icon{width:31px;height:31px;padding:0;background:none;border:0;border-radius:0;display:grid;place-items:center;flex:0 0 auto}
+.bubble .media-icon .fi-svg{width:31px;height:31px;border-radius:10px}
+.file-info-badge{width:62px;height:62px;flex:0 0 62px;padding:0;background:none;border:0;box-shadow:none;border-radius:0;display:grid;place-items:center}
+.file-info-badge .fi-svg{width:62px;height:62px;border-radius:18px;box-shadow:0 10px 24px rgba(43,68,120,.18)}
+.info-file-name .fi-svg{display:inline-block;vertical-align:-5px;width:22px;height:22px;margin-right:3px}
+.search-file-icon .fi-svg{width:33px;height:33px;border-radius:10px}
+.video-placeholder .fi-svg,.admin-media-preview.text-preview .fi-svg{width:48px;height:48px;border-radius:14px}
+@media(max-width:720px){
+.files-page .file-icon .fi-svg{width:37px;height:37px}
+.admin-file-item .file-icon .fi-svg{width:35px;height:35px}
+.bubble .file-card .file-icon .fi-svg{width:42px;height:42px}
+.bubble .media-icon,.bubble .media-icon .fi-svg{width:29px;height:29px}
+.file-info-badge{width:53px;height:53px;flex-basis:53px}
+.file-info-badge .fi-svg{width:53px;height:53px;border-radius:15px}
+.search-file-icon .fi-svg{width:29px;height:29px}
+}

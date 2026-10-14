@@ -40,9 +40,9 @@ DB_PATH = DATA_DIR / 'chat.db'
 SITE_TITLE = os.getenv('LANCHAT_SITE_TITLE', 'LAN Chat')
 WELCOME = os.getenv('LANCHAT_WELCOME', '局域网聊天室')
 FILES_TITLE = os.getenv('LANCHAT_FILES_TITLE', '文件目录')
-APP_VERSION = "20260919113903"
+APP_VERSION = "20261014093717"
 APP_UPDATED_AT = "2026-09-19 11:39"
-APP_TAG = "v2.6.2"   # 与 GitHub Release 的 tag 对齐，用于后台「检查更新」比对
+APP_TAG = "v2.6.3"   # 与 GitHub Release 的 tag 对齐，用于后台「检查更新」比对
 APP_CHANGELOG = [
     '修复：compose 中需支持显式留空的变量由 ${VAR:-默认} 改为 ${VAR-默认}（带冒号时空值会被当未设置），海外服务器设 APT_MIRROR= 跳过 apt 换源、密码留空免密现在真正生效。',
     '修复批次：Dockerfile 端口与 compose 对齐为 1111、apt 换源改为可选构建参数；清理未使用导入。',
