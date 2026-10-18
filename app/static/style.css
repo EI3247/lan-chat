@@ -620,16 +620,20 @@ mark.kw-hit{background:linear-gradient(180deg,#fff3a0,#ffe14d);color:#5a4500;bor
 @media(min-width:721px){
   .composer{left:auto;right:auto;width:min(1160px,calc(100vw - 28px));margin-left:auto;margin-right:auto;left:50%;transform:translateX(-50%)}
 }
-/* 消息流滚动区垫高：最后的内容可以滚进输入框下方，形成穿透效果 */
-.messages{padding-bottom:112px!important}
-@media(max-width:720px){.messages{padding-bottom:106px!important}}
+/* 消息流滚动区垫高：最后的内容可以滚进输入框下方，形成穿透效果
+   --composer-pad 由 JS syncComposerPad() 按输入框实时高度写入，输入框变高时垫高同步增长，
+   否则多行输入会把最后一条消息压在输入框下面 */
+:root{--composer-pad:112px}
+.messages{padding-bottom:calc(var(--composer-pad) + var(--msgs-extra-pad,0px))!important}
+@media(max-width:720px){:root{--composer-pad:106px}}
 
-/* ===== 一键到底悬浮球：钉在输入框上方，不再重叠 ===== */
+/* ===== 一键到底悬浮球：钉在输入框上方，不再重叠（随输入框高度浮动）===== */
+/* --composer-pad 已包含安全区偏移，这里不再叠加 env(safe-area-inset-bottom) */
 .scroll-bottom-fab{
-  bottom:calc(136px + env(safe-area-inset-bottom,0px))!important;
+  bottom:calc(var(--composer-pad,136px) + 16px)!important;
   z-index:32!important;
 }
-@media(min-width:721px){.scroll-bottom-fab{bottom:140px!important}}
+@media(min-width:721px){.scroll-bottom-fab{bottom:calc(var(--composer-pad,140px) + 16px)!important}}
 
 /* ===== 网盘/我的按钮靠右集中：发送键左侧成组 ===== */
 .composer .composer-actions .ghost.bottom-nav{margin-left:auto}
@@ -637,7 +641,7 @@ mark.kw-hit{background:linear-gradient(180deg,#fff3a0,#ffe14d);color:#5a4500;bor
 
 /* ===== 底部穿透过渡自然化：消除"实体长条"感 ===== */
 .messages{
-  padding-bottom:112px!important;
+  padding-bottom:calc(var(--composer-pad) + var(--msgs-extra-pad,0px))!important;
   -webkit-mask-image:linear-gradient(to bottom,#000 calc(100% - 120px),rgba(0,0,0,.35) calc(100% - 60px),rgba(0,0,0,.12) 100%);
   mask-image:linear-gradient(to bottom,#000 calc(100% - 120px),rgba(0,0,0,.35) calc(100% - 60px),rgba(0,0,0,.12) 100%);
 }

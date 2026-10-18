@@ -18,7 +18,16 @@ function updateModeUI(){ const priv=isPrivateMode(); document.querySelectorAll('
     }
   }
 }
-async function setChatMode(mode, opts={}){ const next=mode==='private'?'private':'public'; if(next===chatMode && !opts.force) { updateModeUI(); return; } try{localStorage.setItem('lanchat_draft_'+(chatMode==='private'?'private':'public'),$('#messageInput').value)}catch{}; chatMode=next; localStorage.setItem('lanchat_mode',chatMode); updateModeUI(); restoreDraft(); await loadMessages({forceScroll:true}); }
+let modeSwitchSeq=0;
+async function setChatMode(mode, opts={}){ const next=mode==='private'?'private':'public'; if(next===chatMode && !opts.force) { updateModeUI(); return; } try{localStorage.setItem('lanchat_draft_'+(chatMode==='private'?'private':'public'),$('#messageInput').value)}catch{};
+  // 先取数据（DOM 与主题都不动），拿到后在同一帧里换主题+换列表：只为了避免中间态混色闪烁，
+  // 位置行为保持原样——切模式一律滚到最底部
+  const seq=++modeSwitchSeq;
+  let pre=null; try{ pre=await api(`/api/messages?limit=60&scope=${next}`) }catch(e){}
+  if(seq!==modeSwitchSeq) return; // 连点只让最后一次生效，避免列表与模式错位
+  chatMode=next; localStorage.setItem('lanchat_mode',chatMode); updateModeUI(); restoreDraft();
+  await loadMessages({prefetched: pre, forceScroll: true});
+}
 const $=s=>document.querySelector(s); const messagesEl=$('#messages');
 let autoScrollGeneration=0,lastMessageScrollIntentAt=0;
 function noteMessageScrollIntent(){lastMessageScrollIntentAt=Date.now();autoScrollGeneration++}
@@ -69,7 +78,7 @@ function renderMarkdown(text){
 function mediaName(f){let name=escapeHtml(f.name), meta=`${escapeHtml(f.kind)} · ${size(f.size)}`;return `<button type="button" class="media-name file-name-trigger" data-file-info="${f.id}"><span class="media-icon">${fiImg(f.name,f.kind)}</span><span class="media-text"><span class="media-title">${name}</span><span class="media-sub">${meta}</span></span></button>`}
 function fileBlock(f){ if(!f) return ''; let view=f.public_view_url||f.view_url||f.url, name=escapeHtml(f.name), meta=`${escapeHtml(f.kind)} · ${size(f.size)}`;
   if(f.kind==='image'){let src=f.preview_url||view; return `<div class="media-card"><div class="media"><img class="zoomable" data-full="${view}" src="${src}" alt="${name}" loading="lazy"></div>${mediaName(f)}</div>`}
-  if(f.kind==='video') return `<div class="media-card"><div class="media"><video src="${view}" ${f.preview_url?`poster="${f.preview_url}"`:''} controls preload="metadata"></video><button class="media-rate-btn" type="button" data-rate-btn title="切换倍速">1.0x</button></div>${mediaName(f)}</div>`
+  if(f.kind==='video') return `<div class="media-card"><div class="media"><video src="${view}" ${f.preview_url?`poster="${f.preview_url}"`:''} controls preload="none"></video><button class="media-rate-btn" type="button" data-rate-btn title="切换倍速">1.0x</button></div>${mediaName(f)}</div>`
   if(f.kind==='audio') return `<div class="media-card audio-card"><div class="media"><audio src="${view}" controls preload="metadata"></audio><button class="media-rate-btn" type="button" data-rate-btn title="切换倍速">1.0x</button></div>${mediaName(f)}</div>`
   if(f.kind==='text') return `<div class="file-card"><div class="file-icon">${fiImg(f.name,f.kind)}</div><div class="file-info"><button type="button" class="fn file-name-trigger" data-file-info="${f.id}" title="${name}">${name}</button><div class="fs">${meta}</div></div></div>`
   return `<div class="file-card"><div class="file-icon">${fiImg(f.name,f.kind)}</div><div class="file-info"><button type="button" class="fn file-name-trigger" data-file-info="${f.id}" title="${name}">${name}</button><div class="fs">${meta}</div></div></div>`
@@ -100,11 +109,14 @@ function renderMessage(m){
 }
 function nearBottom(){return messagesEl.scrollHeight - messagesEl.scrollTop - messagesEl.clientHeight < 120}
 function scrollBottomSoon(){const gen=autoScrollGeneration;const go=()=>{if(gen!==autoScrollGeneration||Date.now()-lastMessageScrollIntentAt<900)return;messagesEl.scrollTop=messagesEl.scrollHeight};go();requestAnimationFrame(go);[80,260,700,1200].forEach(t=>setTimeout(go,t))}
-function syncMediaCardWidths(){messagesEl.querySelectorAll('.media-card:not(.audio-card)').forEach(card=>{const media=card.querySelector('.media img,.media video'); if(!media)return; const renderedW=Math.ceil(media.getBoundingClientRect().width); const intrinsicW=media.tagName==='VIDEO'?(media.videoWidth||0):(media.naturalWidth||0); const tinyIntrinsic=intrinsicW>0&&intrinsicW<=220; const fallback=tinyIntrinsic||renderedW<=180||card.classList.contains('media-card-fallback')&&intrinsicW===0; const target=fallback?220:renderedW; card.style.width=target+'px'; card.classList.toggle('media-card-fallback',fallback);})}
+function syncMediaCardWidths(){messagesEl.querySelectorAll('.media-card:not(.audio-card)').forEach(card=>{const media=card.querySelector('.media img,.media video'); if(!media)return; const renderedW=Math.ceil(media.getBoundingClientRect().width); const intrinsicW=media.tagName==='VIDEO'?(media.videoWidth||0):(media.naturalWidth||0); /* 视频是 preload=none：元数据没加载时 videoWidth=0，尺寸应由 poster 的固有比例决定，写死宽度会让卡片永久缩到 220 */ if(media.tagName==='VIDEO'&&intrinsicW===0){ if(card.style.width) card.style.width=''; if(card.classList.contains('media-card-fallback')) card.classList.remove('media-card-fallback'); return; } const tinyIntrinsic=intrinsicW>0&&intrinsicW<=220; const fallback=tinyIntrinsic||renderedW<=180||card.classList.contains('media-card-fallback')&&intrinsicW===0; const target=fallback?220:renderedW; card.style.width=target+'px'; card.classList.toggle('media-card-fallback',fallback);})}
 function bindMediaSettleScroll(){messagesEl.querySelectorAll('img,video').forEach(el=>{if(el.dataset.scrollBound)return;el.dataset.scrollBound='1';['load','loadedmetadata','loadeddata'].forEach(ev=>el.addEventListener(ev,()=>{syncMediaCardWidths(); if(nearBottom())scrollBottomSoon()},{once:true}))}); syncMediaCardWidths()}
 function rememberFile(f){if(f&&f.id) fileStore.set(f.id,f); return f}
 function upsertMessage(m, opts={}){ if(m&&m.id) messageStore.set(m.id,m); if(m&&m.file) rememberFile(m.file); let stick=opts.forceScroll || nearBottom(); let old=$(`#m-${CSS.escape(m.id)}`); if(m.deleted){old?.remove(); messageStore.delete(m.id); return} if(!msgInCurrentView(m)){ old?.remove(); return } const html=renderMessage(m); if(old) old.outerHTML=html; else messagesEl.insertAdjacentHTML('beforeend',html); collapseLong(); bindMediaSettleScroll(); refreshDateDividers(); loadPinnedBanner(); if(stick) scrollBottomSoon(); else { if(!old && typeof bumpNewCount==='function') bumpNewCount(); } }
-function collapseLong(){document.querySelectorAll('.content').forEach(e=>{ const article=e.closest('.msg'); const id=article?.id?.replace(/^m-/,''); const btn=article?.querySelector('[data-toggle]'); e.classList.remove('collapsed'); e.dataset.manual=''; const isLong=e.scrollHeight>340; if(btn) btn.style.display=isLong?'inline-flex':'none'; if(isLong && !expandedMessages.has(id)) e.classList.add('collapsed'); if(expandedMessages.has(id)) e.dataset.manual='1'; if(btn) btn.textContent=e.classList.contains('collapsed')?'展开':'收起'; })}
+function collapseLong(){ /* 先做完全部写、再读完高度、最后统一写：避免 读-写 交替为每条消息触发一次重排（60 条时是切模式卡顿的主因） */
+  const items=[]; document.querySelectorAll('.content').forEach(e=>{ const article=e.closest('.msg'); const id=article?.id?.replace(/^m-/,''); const btn=article?.querySelector('[data-toggle]'); e.classList.remove('collapsed'); e.dataset.manual=''; items.push([e,id,btn]); });
+  const heights=items.map(it=>it[0].scrollHeight);
+  items.forEach((it,i)=>{ const e=it[0],id=it[1],btn=it[2]; const isLong=heights[i]>340; if(btn) btn.style.display=isLong?'inline-flex':'none'; if(isLong && !expandedMessages.has(id)) e.classList.add('collapsed'); if(expandedMessages.has(id)) e.dataset.manual='1'; if(btn) btn.textContent=e.classList.contains('collapsed')?'展开':'收起'; })}
 function dayKey(ts){const d=new Date(ts); return `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`}
 function dayLabel(ts){const d=new Date(ts); const now=new Date(); const t0=new Date(now.getFullYear(),now.getMonth(),now.getDate()); const md=new Date(d.getFullYear(),d.getMonth(),d.getDate()); const diff=Math.round((t0-md)/86400000); if(diff===0) return '今天'; if(diff===1) return '昨天'; if(diff===2) return '前天'; const wk=['星期日','星期一','星期二','星期三','星期四','星期五','星期六'][d.getDay()]; const sameYear=d.getFullYear()===now.getFullYear(); const dateStr=sameYear?`${d.getMonth()+1}月${d.getDate()}日`:`${d.getFullYear()}年${d.getMonth()+1}月${d.getDate()}日`; return diff>=3&&diff<=6?`${dateStr} ${wk}`:dateStr}
 function refreshDateDividers(){
@@ -119,7 +131,20 @@ function refreshDateDividers(){
 }
 let hasMoreOlder=true, loadingOlder=false, oldestId=null;
 let hasMoreNewer=false, loadingNewer=false, newestId=null;
-async function loadMessages(opts={}){let stick=opts.forceScroll || nearBottom() || messagesEl.childElementCount===0; const prevTop=messagesEl.scrollTop, prevH=messagesEl.scrollHeight; const d=await api(`/api/messages?limit=60&scope=${chatMode}`); messagesEl.innerHTML=''; messageStore.clear(); d.messages.forEach(m=>{ if(m&&m.id) messageStore.set(m.id,m); if(m&&m.file) rememberFile(m.file); messagesEl.insertAdjacentHTML('beforeend',renderMessage(m)) }); hasMoreOlder=d.messages.length>=60; oldestId=d.messages.length?d.messages[0].id:null; hasMoreNewer=false; newestId=d.messages.length?d.messages[d.messages.length-1].id:null; collapseLong(); bindMediaSettleScroll(); refreshDateDividers(); loadPinnedBanner(); if(stick) scrollBottomSoon(); else if(opts.keepView){messagesEl.scrollTop=prevTop+(messagesEl.scrollHeight-prevH)} if(typeof updateChatFab==='function')setTimeout(updateChatFab,60)}
+async function loadMessages(opts={}){
+  let stick=opts.forceScroll || nearBottom() || messagesEl.childElementCount===0;
+  const prevTop=messagesEl.scrollTop, prevH=messagesEl.scrollHeight;
+  const d=opts.prefetched||await api(`/api/messages?limit=60&scope=${chatMode}`);
+  messageStore.clear();
+  const _parts=[];
+  d.messages.forEach(m=>{ if(m&&m.id) messageStore.set(m.id,m); if(m&&m.file) rememberFile(m.file); _parts.push(renderMessage(m)) });
+  messagesEl.innerHTML=_parts.join('');
+  hasMoreOlder=d.messages.length>=60; oldestId=d.messages.length?d.messages[0].id:null;
+  hasMoreNewer=false; newestId=d.messages.length?d.messages[d.messages.length-1].id:null;
+  collapseLong(); bindMediaSettleScroll(); refreshDateDividers(); loadPinnedBanner();
+  if(stick) scrollBottomSoon(); else if(opts.keepView){ messagesEl.scrollTop=prevTop+(messagesEl.scrollHeight-prevH); }
+  if(typeof updateChatFab==='function') setTimeout(updateChatFab,60);
+}
 async function loadOlder(){
   if(loadingOlder||!hasMoreOlder||!oldestId) return;
   loadingOlder=true; const loader=document.createElement('div'); loader.className='older-loader'; loader.textContent='加载更早的消息…'; messagesEl.prepend(loader);
@@ -200,6 +225,8 @@ $('#messageInput').addEventListener('focus', autoGrowComposer);
 $('#messageInput').addEventListener('blur', autoGrowComposer);
 window.addEventListener('resize', ()=>{autoGrowComposer(); autoGrowTextarea($('#editText')); syncMediaCardWidths()});
 setTimeout(autoGrowComposer,0);
+// 输入框自身尺寸变化（附件预览/引用条/上传进度条出现等）也要同步垫高
+try{ if(window.ResizeObserver){ new ResizeObserver(function(){ syncComposerPad(); }).observe(document.querySelector('.composer')); } }catch(e){}
 function clearAttach(){attachQueue=[]; updateSendBtnState(); $('#fileInput').value=''; renderAttachPreview()}
 function renderAttachPreview(){const el=$('#attachPreview'); if(!el)return; if(!attachQueue.length){el.classList.add('hidden'); el.innerHTML=''; return} el.classList.remove('hidden'); const head=attachQueue.length===1?`将上传：${escapeHtml(attachQueue[0].name)} (${size(attachQueue[0].size)})`:`将上传 ${attachQueue.length} 个文件`; const list=attachQueue.length>1?`<div class="attach-list">${attachQueue.map((f,i)=>`<span class="attach-chip">${escapeHtml(f.name)} (${size(f.size)})<button type="button" class="attach-chip-x" data-attach-rm="${i}" title="移除">×</button></span>`).join('')}</div>`:''; el.innerHTML=`<div class="attach-head"><span>${head}</span><button type="button" class="attach-cancel" id="cancelAttach">清空</button></div>${list}`}
 /* ===== 📎 附件二级菜单：上传文件 / 拍照 / P2P 直传 ===== */
@@ -252,7 +279,24 @@ function updateSendBtnState(){
   btn.classList.toggle('has-content', hasContent);
 }
 
-function autoGrowComposer(){ const el=$('#messageInput'); if(!el) return; var savedTop=el.scrollTop; el.style.height='auto'; var maxH=Math.max(160, Math.floor((window.innerHeight||700)*0.7)); var h=Math.min(maxH, Math.max(44, el.scrollHeight)); el.style.height=h+'px'; el.style.overflowY=(el.scrollHeight>maxH+2)?'auto':'hidden'; el.scrollTop=savedTop; updateSendBtnState(); }
+// 输入框高度变化后同步消息区垫高：垫高 = 输入框实际高度 + 输入框下缘到滚动区下缘的距离 + 间隙
+// 不这么做时，多行输入把输入框顶高，最后一条消息被压在输入框下面看不见
+function syncComposerPad(){
+  const c=document.querySelector('.composer'), m=messagesEl;
+  if(!c||!m) return;
+  const r=c.getBoundingClientRect(), mr=m.getBoundingClientRect();
+  if(!r.height||!mr.height) return;
+  const gap=window.innerWidth<=720?10:14;
+  let pad=Math.ceil(r.height+(mr.bottom-r.bottom)+gap);
+  if(pad<106) pad=106;
+  const root=document.documentElement;
+  const prev=parseInt(root.style.getPropertyValue('--composer-pad'),10)||0;
+  if(prev===pad) return;
+  const wasBottom=m.scrollHeight-m.scrollTop-m.clientHeight<4;
+  root.style.setProperty('--composer-pad',pad+'px');
+  if(wasBottom) m.scrollTop=m.scrollHeight;
+}
+function autoGrowComposer(){ const el=$('#messageInput'); if(!el) return; var savedTop=el.scrollTop; el.style.height='auto'; var maxH=Math.max(160, Math.floor((window.innerHeight||700)*0.7)); var h=Math.min(maxH, Math.max(44, el.scrollHeight)); el.style.height=h+'px'; el.style.overflowY=(el.scrollHeight>maxH+2)?'auto':'hidden'; el.scrollTop=savedTop; syncComposerPad(); updateSendBtnState(); }
 function fmtSpeed(n){return `${size(n)}/s`}
 function setUploadProgress(state){
   let el=$('#uploadProgress'); if(!el)return;
