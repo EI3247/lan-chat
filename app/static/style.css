@@ -2320,3 +2320,44 @@ body.private-mode .composer #sendBtn.has-content{
 /* Chat inline video: plays directly inside bubble after tap */
 .bubble .media video.chat-inline-video{display:block;width:auto;height:auto;max-width:100%;max-height:460px;object-fit:contain;background:#000}
 @media(max-width:720px){.bubble .media video.chat-inline-video{max-height:320px}}
+
+/* ===== 网盘移动端超宽修复（2026-10-19）：卡片内部全部收进列宽，按钮允许换行 ===== */
+.files-page{overflow-x:clip}
+.files-page .page-shell{max-width:100vw;overflow-x:clip}
+.files-page .file-list{max-width:100%;overflow:hidden}
+.files-page .file-item{min-width:0;max-width:100%;overflow:hidden;box-sizing:border-box}
+.files-page .file-card{max-width:100%;overflow:hidden}
+.files-page .file-info{min-width:0;max-width:100%;overflow:hidden}
+.files-page .file-info .fn{max-width:100%}
+.files-page .file-info .file-meta{max-width:100%}
+.files-page .file-preview{max-width:100%;overflow:hidden;box-sizing:border-box}
+.files-page .file-preview img,.files-page .file-preview video{max-width:100%}
+.files-page .file-preview audio{width:100%;max-width:100%}
+.files-page .file-item .actions{flex-wrap:wrap;max-width:100%}
+.files-page .file-item .actions a,.files-page .file-item .actions button{min-width:0;max-width:100%}
+.files-page .file-menu{max-width:100%;box-sizing:border-box}
+@media(max-width:720px){.files-page .file-item .actions a,.files-page .file-item .actions button{flex:1 1 auto}}
+
+/* ===== 视频循环播放按钮（与倍速键同风格）===== */
+.media-loop-btn{position:absolute;top:8px;right:64px;z-index:10;background:rgba(0,0,0,.6);color:#fff;border:1px solid rgba(255,255,255,.3);border-radius:12px;font-size:11px;font-weight:700;padding:2px 7px;cursor:pointer;backdrop-filter:blur(6px);transition:transform .12s,background .15s,color .15s}
+.media-loop-btn:active{transform:scale(0.92)}
+.media-loop-btn.on{background:rgba(79,124,255,.85);border-color:rgba(255,255,255,.6);color:#fff}
+.audio-card .media-loop-btn{top:auto;bottom:8px;right:64px}
+.lightbox.video-lightbox{position:fixed}
+.video-lightbox .lightbox-loop-btn{position:absolute;top:14px;right:70px;z-index:102}
+
+/* ===== 网盘 B 方案：保留双列卡片，只收拾内部（2026-10-19）===== */
+.files-page .file-item{border-radius:16px;padding:10px;display:grid;gap:8px;align-content:start}
+.files-page .file-card{display:flex;gap:10px;align-items:flex-start;padding:2px 2px 0;border:0;background:transparent;box-shadow:none;min-width:0}
+.files-page .file-icon{width:40px;height:40px;flex:0 0 40px;display:grid;place-items:center;border-radius:12px;background:rgba(79,124,255,.08);border:1px solid rgba(79,124,255,.14);line-height:0}
+.files-page .file-icon .fi-svg{width:26px;height:26px;border-radius:8px}
+.files-page .file-info{min-width:0;flex:1 1 auto}
+.files-page .file-info .fn{font-size:13.5px;font-weight:700;line-height:1.4;max-height:2.8em;overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;white-space:normal;overflow-wrap:anywhere;word-break:break-word;color:#22324d}
+.files-page .file-info .file-meta{font-size:11px;color:rgba(105,117,138,.85);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:3px}
+.files-page .file-preview{border-radius:12px;overflow:hidden;margin-bottom:0}
+.files-page .file-item .actions{display:flex;gap:6px;margin-top:2px}
+.files-page .file-item .actions a,.files-page .file-item .actions button{font-size:12px;min-height:30px;padding:5px 12px;border-radius:10px;background:rgba(255,255,255,.75);border:1px solid var(--line);color:var(--text);text-decoration:none}
+.files-page .file-item .actions .file-more-btn{padding:5px 10px;font-size:15px;line-height:1}
+.files-page .file-menu{margin:2px 0 0}
+@media(max-width:720px){.files-page .file-item{padding:8px}.files-page .file-icon{width:36px;height:36px;flex-basis:36px}.files-page .file-info .fn{font-size:13px}.files-page .file-item .actions a,.files-page .file-item .actions button{font-size:11.5px;min-height:29px;padding:5px 10px}}
+

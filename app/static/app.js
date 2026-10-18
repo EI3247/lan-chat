@@ -108,7 +108,7 @@ function mediaName(f){let name=escapeHtml(f.name), meta=`${escapeHtml(f.kind)} �
 function fileBlock(f){ if(!f) return ''; let view=f.public_view_url||f.view_url||f.url, name=escapeHtml(f.name), meta=`${escapeHtml(f.kind)} · ${size(f.size)}`;
   if(f.kind==='image'){let src=f.preview_url||view; return `<div class="media-card"><div class="media"><img class="zoomable" data-full="${view}" src="${src}" alt="${name}" loading="lazy"></div>${mediaName(f)}</div>`}
   if(f.kind==='video'){const poster=f.preview_url||'';return `<div class="media-card"><div class="media"><button type="button" class="video-thumb chat-video-thumb ${poster?'':'no-poster'}" data-video-open="${view}" data-poster="${poster}" aria-label="播放视频">${poster?`<img src="${poster}" alt="${name}" loading="lazy" onerror="this.style.display='none'">`:''}<span class="video-placeholder">${fiImg(f.name,f.kind)}</span><span class="play-badge"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg></span></button></div>${mediaName(f)}</div>`}
-  if(f.kind==='audio') return `<div class="media-card audio-card"><div class="media"><audio src="${view}" controls preload="metadata"></audio><button class="media-rate-btn" type="button" data-rate-btn title="切换倍速">1.0x</button></div>${mediaName(f)}</div>`
+  if(f.kind==='audio') return `<div class="media-card audio-card"><div class="media"><audio src="${view}" controls preload="metadata"></audio><button class="media-loop-btn" type="button" data-loop-btn title="循环播放">循环</button><button class="media-rate-btn" type="button" data-rate-btn title="切换倍速">1.0x</button></div>${mediaName(f)}</div>`
   if(f.kind==='text') return `<div class="file-card"><div class="file-icon">${fiImg(f.name,f.kind)}</div><div class="file-info"><button type="button" class="fn file-name-trigger" data-file-info="${f.id}" title="${name}">${name}</button><div class="fs">${meta}</div></div></div>`
   return `<div class="file-card"><div class="file-icon">${fiImg(f.name,f.kind)}</div><div class="file-info"><button type="button" class="fn file-name-trigger" data-file-info="${f.id}" title="${name}">${name}</button><div class="fs">${meta}</div></div></div>`
 }
@@ -880,12 +880,12 @@ function highlightAndScrollTo(el){
     setTimeout(()=>target.classList.remove('item-highlight-pulse'),1800);
   });
 }
-function expandChatVideo(btn){ try{ const src=btn.dataset.videoOpen; const poster=btn.dataset.poster||''; if(!src) return; const esc=s=>String(s??'').replace(/"/g,'&quot;'); const tmp=document.createElement('template'); tmp.innerHTML=`<video class="chat-inline-video" src="${esc(src)}"${poster?` poster="${esc(poster)}"`:''} controls autoplay playsinline webkit-playsinline preload="metadata"></video><button class="media-rate-btn" type="button" data-rate-btn title="切换倍速">1.0x</button>`; const parent=btn.parentElement; btn.replaceWith(tmp.content); try{ const v=parent?.querySelector('video.chat-inline-video'); if(v){ const pr=v.play?.(); if(pr&&pr.catch) pr.catch(()=>{}); } }catch(e){} }catch(e){} }
+function expandChatVideo(btn){ try{ const src=btn.dataset.videoOpen; const poster=btn.dataset.poster||''; if(!src) return; const esc=s=>String(s??'').replace(/"/g,'&quot;'); const tmp=document.createElement('template'); tmp.innerHTML=`<video class="chat-inline-video" src="${esc(src)}"${poster?` poster="${esc(poster)}"`:''} controls autoplay playsinline webkit-playsinline preload="metadata"></video><button class="media-loop-btn" type="button" data-loop-btn title="循环播放">循环</button><button class="media-rate-btn" type="button" data-rate-btn title="切换倍速">1.0x</button>`; const parent=btn.parentElement; btn.replaceWith(tmp.content); try{ const v=parent?.querySelector('video.chat-inline-video'); if(v){ const pr=v.play?.(); if(pr&&pr.catch) pr.catch(()=>{}); } }catch(e){} }catch(e){} }
 function openVideoBox(src,poster=''){
   let old=document.querySelector('.video-lightbox'); old?.remove();
   document.documentElement.classList.add('lightbox-open'); document.body.classList.add('lightbox-open');
   const box=document.createElement('div'); box.className='lightbox video-lightbox';
-  box.innerHTML=`<button class="lightbox-close" type="button">×</button><video src="${src}" ${poster?`poster="${poster}"`:''} controls autoplay preload="metadata" playsinline></video>`;
+  box.innerHTML=`<button class="lightbox-close" type="button">×</button><video src="${src}" ${poster?`poster="${poster}"`:''} controls autoplay preload="metadata" playsinline></video><button class="media-loop-btn lightbox-loop-btn" type="button" data-loop-btn title="循环播放">循环</button>`;
   const close=()=>{box.remove(); document.documentElement.classList.remove('lightbox-open'); document.body.classList.remove('lightbox-open')};
   box.onclick=e=>{if(e.target===box||e.target.closest('.lightbox-close')) close()};
   document.addEventListener('keydown',function esc(e){if(e.key==='Escape'){close();document.removeEventListener('keydown',esc)}});
@@ -1414,6 +1414,17 @@ document.addEventListener('click', e => {
   let nextRate = PLAYBACK_RATES[(idx + 1) % PLAYBACK_RATES.length];
   media.playbackRate = nextRate;
   rb.textContent = nextRate.toFixed(nextRate % 1 === 0 ? 1 : 2).replace(/\.0$/, '') + 'x';
+});
+
+// ===== 媒体循环播放切换 =====
+document.addEventListener('click', e => {
+  const lb = e.target.closest('[data-loop-btn]');
+  if(!lb) return;
+  e.preventDefault(); e.stopPropagation();
+  const media = lb.parentElement.querySelector('video, audio');
+  if(!media) return;
+  media.loop = !media.loop;
+  lb.classList.toggle('on', media.loop);
 });
 
 // ===== 置顶公告加载 =====
