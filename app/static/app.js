@@ -31,6 +31,8 @@ async function setChatMode(mode, opts={}){ const next=mode==='private'?'private'
   if(seq!==modeSwitchSeq) return;
   try{ const _st=captureScrollState(); _st.oldestId=oldestId; _st.hasMoreOlder=hasMoreOlder; try{ _st.count=messagesEl.querySelectorAll('.msg').length; }catch(e){ _st.count=0; } modeScrollMem[chatMode]=_st; }catch(e){}
   autoScrollGeneration++;
+  try{ lastMessageScrollIntentAt=0; }catch(e){}
+  try{ if(typeof loadingOlder!=='undefined'){ loadingOlder=false; } }catch(e){}
   const _mem=modeScrollMem[next]||null;
   // 私人切群聊慢的根因：之前先换主题、再在 loadMessages 里补 around 页，
   // 用户先看到颜色变了、列表还停在旧模式，等第二次请求回来才换页。
@@ -185,15 +187,19 @@ async function loadMessages(opts={}){
   hasMoreOlder=d.messages.length>=60; oldestId=d.messages.length?d.messages[0].id:null;
   hasMoreNewer=false; newestId=d.messages.length?d.messages[d.messages.length-1].id:null;
   collapseLong(); bindMediaSettleScroll(); refreshDateDividers(); loadPinnedBanner();
-  if(stick) scrollBottomSoon(); else if(opts.keepView){ if(opts.restoreMem){ restoreScrollState(opts.restoreMem); } else { const maxTop=Math.max(0,messagesEl.scrollHeight-messagesEl.clientHeight); messagesEl.scrollTop=Math.min(prevTop,maxTop); } }
+  if(stick){ if(opts.forceScroll){ try{ messagesEl.scrollTop=messagesEl.scrollHeight; }catch(e){} } scrollBottomSoon(); } else if(opts.keepView){ if(opts.restoreMem){ restoreScrollState(opts.restoreMem); } else { const maxTop=Math.max(0,messagesEl.scrollHeight-messagesEl.clientHeight); messagesEl.scrollTop=Math.min(prevTop,maxTop); } }
   if(typeof updateChatFab==='function') setTimeout(updateChatFab,60);
 }
 async function loadOlder(){
   if(loadingOlder||!hasMoreOlder||!oldestId) return;
+  const _seq=(typeof modeSwitchSeq!=='undefined')?modeSwitchSeq:-1;
+  const _scope=chatMode;
   loadingOlder=true; const loader=document.createElement('div'); loader.className='older-loader'; loader.textContent='加载更早的消息…'; messagesEl.prepend(loader);
   const prevH=messagesEl.scrollHeight, prevTop=messagesEl.scrollTop;
   try{
-    const d=await api(`/api/messages?before=${encodeURIComponent(oldestId)}&limit=30&scope=${chatMode}`);
+    const d=await api(`/api/messages?before=${encodeURIComponent(oldestId)}&limit=30&scope=${_scope}`);
+    if(_seq!==-1&&_seq!==modeSwitchSeq){ try{loader.remove();}catch(e){} return; }
+    if(_scope!==chatMode){ try{loader.remove();}catch(e){} return; }
     loader.remove();
     if(d.messages.length){
       const frag=document.createDocumentFragment();
