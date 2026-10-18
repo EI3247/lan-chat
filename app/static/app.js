@@ -19,14 +19,43 @@ function updateModeUI(){ const priv=isPrivateMode(); document.querySelectorAll('
   }
 }
 let modeSwitchSeq=0;
+let modeScrollMem={public:null,private:null};
+let modeKeepActive=false;
+function captureScrollState(){ try{ const mRect=messagesEl.getBoundingClientRect(); let anchorId=null, anchorOffset=0; const arts=messagesEl.querySelectorAll('.msg'); for(const art of arts){ const r=art.getBoundingClientRect(); if(r.bottom>mRect.top+1){ anchorId=art.id||null; anchorOffset=r.top-mRect.top; break; } } return {anchorId, anchorOffset, top:messagesEl.scrollTop, h:messagesEl.scrollHeight, viewH:messagesEl.clientHeight}; }catch(e){ try{ return {anchorId:null, anchorOffset:0, top:messagesEl.scrollTop, h:messagesEl.scrollHeight, viewH:messagesEl.clientHeight}; }catch(e2){ return {anchorId:null, anchorOffset:0, top:0, h:0, viewH:0}; } } }
+function restoreScrollState(mem){ try{ if(!mem) return false; if(mem.anchorId){ const el=document.getElementById(mem.anchorId); if(el){ const mRect=messagesEl.getBoundingClientRect(); const r=el.getBoundingClientRect(); const delta=(r.top-mRect.top)-mem.anchorOffset; messagesEl.scrollTop=messagesEl.scrollTop+delta; return true; } } if(typeof mem.top==='number'){ const maxTop=Math.max(0,messagesEl.scrollHeight-messagesEl.clientHeight); if(mem.h>0){ const wasBottom=(mem.h-mem.top-(mem.viewH||messagesEl.clientHeight))<120; if(wasBottom){ messagesEl.scrollTop=messagesEl.scrollHeight; return true; } const ratio=mem.h?mem.top/mem.h:0; messagesEl.scrollTop=Math.min(Math.max(0,Math.round(ratio*messagesEl.scrollHeight)),maxTop); return true; } messagesEl.scrollTop=Math.min(mem.top,maxTop); return true; } }catch(e){} return false; }
 async function setChatMode(mode, opts={}){ const next=mode==='private'?'private':'public'; if(next===chatMode && !opts.force) { updateModeUI(); return; } try{localStorage.setItem('lanchat_draft_'+(chatMode==='private'?'private':'public'),$('#messageInput').value)}catch{};
   // 先取数据（DOM 与主题都不动），拿到后在同一帧里换主题+换列表：只为了避免中间态混色闪烁，
-  // 位置行为保持原样——切模式一律滚到最底部
+  // 位置行为保持原样——切模式保持当前滚动位置，不滚到底
   const seq=++modeSwitchSeq;
   let pre=null; try{ pre=await api(`/api/messages?limit=60&scope=${next}`) }catch(e){}
-  if(seq!==modeSwitchSeq) return; // 连点只让最后一次生效，避免列表与模式错位
+  if(seq!==modeSwitchSeq) return;
+  try{ const _st=captureScrollState(); _st.oldestId=oldestId; _st.hasMoreOlder=hasMoreOlder; try{ _st.count=messagesEl.querySelectorAll('.msg').length; }catch(e){ _st.count=0; } modeScrollMem[chatMode]=_st; }catch(e){}
+  autoScrollGeneration++;
+  const _mem=modeScrollMem[next]||null;
+  // 私人切群聊慢的根因：之前先换主题、再在 loadMessages 里补 around 页，
+  // 用户先看到颜色变了、列表还停在旧模式，等第二次请求回来才换页。
+  // 改成数据（含 around 补页）全部拿完，再同一帧换主题+换列表。
+  if(_mem && _mem.anchorId && pre && Array.isArray(pre.messages)){
+    try{
+      const _t=String(_mem.anchorId).replace(/^m-/,'');
+      const _has=pre.messages.some(m=>String(m&&m.id)===_t);
+      if(!_has){
+        const _cnt=Math.max(0,_mem.count||0);
+        const _want=Math.min(300,Math.max(120,_cnt+60));
+        try{
+          const _ad=await api(`/api/messages?around=${encodeURIComponent(_t)}&limit=${_want}&scope=${next}`);
+          if(seq!==modeSwitchSeq) return;
+          if(_ad&&Array.isArray(_ad.messages)&&_ad.messages.length&&_ad.messages.some(m=>String(m&&m.id)===_t)){ pre=_ad; }
+        }catch(e){}
+      }
+    }catch(e){}
+  }
+  if(seq!==modeSwitchSeq) return;
   chatMode=next; localStorage.setItem('lanchat_mode',chatMode); updateModeUI(); restoreDraft();
-  await loadMessages({prefetched: pre, forceScroll: true});
+  try{
+    if(_mem){ modeKeepActive=true; await loadMessages({prefetched: pre, keepView: true, restoreMem: _mem, skipAroundFetch: true}); }
+    else{ modeKeepActive=false; await loadMessages({prefetched: pre, forceScroll: true}); }
+  }finally{ setTimeout(()=>{ modeKeepActive=false; },1200); }
 }
 const $=s=>document.querySelector(s); const messagesEl=$('#messages');
 let autoScrollGeneration=0,lastMessageScrollIntentAt=0;
@@ -78,7 +107,7 @@ function renderMarkdown(text){
 function mediaName(f){let name=escapeHtml(f.name), meta=`${escapeHtml(f.kind)} · ${size(f.size)}`;return `<button type="button" class="media-name file-name-trigger" data-file-info="${f.id}"><span class="media-icon">${fiImg(f.name,f.kind)}</span><span class="media-text"><span class="media-title">${name}</span><span class="media-sub">${meta}</span></span></button>`}
 function fileBlock(f){ if(!f) return ''; let view=f.public_view_url||f.view_url||f.url, name=escapeHtml(f.name), meta=`${escapeHtml(f.kind)} · ${size(f.size)}`;
   if(f.kind==='image'){let src=f.preview_url||view; return `<div class="media-card"><div class="media"><img class="zoomable" data-full="${view}" src="${src}" alt="${name}" loading="lazy"></div>${mediaName(f)}</div>`}
-  if(f.kind==='video') return `<div class="media-card"><div class="media"><video src="${view}" ${f.preview_url?`poster="${f.preview_url}"`:''} controls preload="none"></video><button class="media-rate-btn" type="button" data-rate-btn title="切换倍速">1.0x</button></div>${mediaName(f)}</div>`
+  if(f.kind==='video'){const poster=f.preview_url||'';return `<div class="media-card"><div class="media"><button type="button" class="video-thumb chat-video-thumb ${poster?'':'no-poster'}" data-video-open="${view}" data-poster="${poster}" aria-label="播放视频">${poster?`<img src="${poster}" alt="${name}" loading="lazy" onerror="this.style.display='none'">`:''}<span class="video-placeholder">${fiImg(f.name,f.kind)}</span><span class="play-badge"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg></span></button></div>${mediaName(f)}</div>`}
   if(f.kind==='audio') return `<div class="media-card audio-card"><div class="media"><audio src="${view}" controls preload="metadata"></audio><button class="media-rate-btn" type="button" data-rate-btn title="切换倍速">1.0x</button></div>${mediaName(f)}</div>`
   if(f.kind==='text') return `<div class="file-card"><div class="file-icon">${fiImg(f.name,f.kind)}</div><div class="file-info"><button type="button" class="fn file-name-trigger" data-file-info="${f.id}" title="${name}">${name}</button><div class="fs">${meta}</div></div></div>`
   return `<div class="file-card"><div class="file-icon">${fiImg(f.name,f.kind)}</div><div class="file-info"><button type="button" class="fn file-name-trigger" data-file-info="${f.id}" title="${name}">${name}</button><div class="fs">${meta}</div></div></div>`
@@ -108,9 +137,9 @@ function renderMessage(m){
   return `<article id="m-${m.id}" data-user-id="${escapeHtml(m.user_id)}" class="msg ${mine?'mine':''} ${m.private?'msg-private':''} ${m._pending?'_pending':''}"><button class="avatar-btn" data-user-info="${escapeHtml(m.user_id)}" title="查看用户资料">${avatar(m.user)}</button><div class="bubble"><div class="meta"><span class="name">${escapeHtml(m.user?.nickname||'未知')}</span><span class="msg-time">${m._pending?'发送中…':fmt(m.edited&&m.updated_at?m.updated_at:m.created_at)}</span>${m.edited?'<span>已编辑</span>':''}${pinTag}${lock}</div>${content}${actions}</div></article>`
 }
 function nearBottom(){return messagesEl.scrollHeight - messagesEl.scrollTop - messagesEl.clientHeight < 120}
-function scrollBottomSoon(){const gen=autoScrollGeneration;const go=()=>{if(gen!==autoScrollGeneration||Date.now()-lastMessageScrollIntentAt<900)return;messagesEl.scrollTop=messagesEl.scrollHeight};go();requestAnimationFrame(go);[80,260,700,1200].forEach(t=>setTimeout(go,t))}
+function scrollBottomSoon(){if(modeKeepActive) return;const gen=autoScrollGeneration;const go=()=>{if(modeKeepActive) return;if(gen!==autoScrollGeneration||Date.now()-lastMessageScrollIntentAt<900)return;messagesEl.scrollTop=messagesEl.scrollHeight};go();requestAnimationFrame(go);[80,260,700,1200].forEach(t=>setTimeout(go,t))}
 function syncMediaCardWidths(){messagesEl.querySelectorAll('.media-card:not(.audio-card)').forEach(card=>{const media=card.querySelector('.media img,.media video'); if(!media)return; const renderedW=Math.ceil(media.getBoundingClientRect().width); const intrinsicW=media.tagName==='VIDEO'?(media.videoWidth||0):(media.naturalWidth||0); /* 视频是 preload=none：元数据没加载时 videoWidth=0，尺寸应由 poster 的固有比例决定，写死宽度会让卡片永久缩到 220 */ if(media.tagName==='VIDEO'&&intrinsicW===0){ if(card.style.width) card.style.width=''; if(card.classList.contains('media-card-fallback')) card.classList.remove('media-card-fallback'); return; } const tinyIntrinsic=intrinsicW>0&&intrinsicW<=220; const fallback=tinyIntrinsic||renderedW<=180||card.classList.contains('media-card-fallback')&&intrinsicW===0; const target=fallback?220:renderedW; card.style.width=target+'px'; card.classList.toggle('media-card-fallback',fallback);})}
-function bindMediaSettleScroll(){messagesEl.querySelectorAll('img,video').forEach(el=>{if(el.dataset.scrollBound)return;el.dataset.scrollBound='1';['load','loadedmetadata','loadeddata'].forEach(ev=>el.addEventListener(ev,()=>{syncMediaCardWidths(); if(nearBottom())scrollBottomSoon()},{once:true}))}); syncMediaCardWidths()}
+function bindMediaSettleScroll(){messagesEl.querySelectorAll('img,video').forEach(el=>{if(el.dataset.scrollBound)return;el.dataset.scrollBound='1';['load','loadedmetadata','loadeddata'].forEach(ev=>el.addEventListener(ev,()=>{syncMediaCardWidths(); if(modeKeepActive) return; if(nearBottom())scrollBottomSoon()},{once:true}))}); syncMediaCardWidths()}
 function rememberFile(f){if(f&&f.id) fileStore.set(f.id,f); return f}
 function upsertMessage(m, opts={}){ if(m&&m.id) messageStore.set(m.id,m); if(m&&m.file) rememberFile(m.file); let stick=opts.forceScroll || nearBottom(); let old=$(`#m-${CSS.escape(m.id)}`); if(m.deleted){old?.remove(); messageStore.delete(m.id); return} if(!msgInCurrentView(m)){ old?.remove(); return } const html=renderMessage(m); if(old) old.outerHTML=html; else messagesEl.insertAdjacentHTML('beforeend',html); collapseLong(); bindMediaSettleScroll(); refreshDateDividers(); loadPinnedBanner(); if(stick) scrollBottomSoon(); else { if(!old && typeof bumpNewCount==='function') bumpNewCount(); } }
 function collapseLong(){ /* 先做完全部写、再读完高度、最后统一写：避免 读-写 交替为每条消息触发一次重排（60 条时是切模式卡顿的主因） */
@@ -132,9 +161,23 @@ function refreshDateDividers(){
 let hasMoreOlder=true, loadingOlder=false, oldestId=null;
 let hasMoreNewer=false, loadingNewer=false, newestId=null;
 async function loadMessages(opts={}){
-  let stick=opts.forceScroll || nearBottom() || messagesEl.childElementCount===0;
+  let stick=opts.keepView ? (messagesEl.childElementCount===0 && !opts.restoreMem) : (opts.forceScroll || nearBottom() || messagesEl.childElementCount===0);
   const prevTop=messagesEl.scrollTop, prevH=messagesEl.scrollHeight;
-  const d=opts.prefetched||await api(`/api/messages?limit=60&scope=${chatMode}`);
+  let d=opts.prefetched||await api(`/api/messages?limit=60&scope=${chatMode}`);
+  try{
+    if(opts.keepView && opts.restoreMem && opts.restoreMem.anchorId && !opts.skipAroundFetch){
+      const _t=String(opts.restoreMem.anchorId).replace(/^m-/,'');
+      let _has=Array.isArray(d.messages)&&d.messages.some(m=>String(m&&m.id)===_t);
+      if(!_has){
+        try{
+          const _cnt=Math.max(0,opts.restoreMem.count||0);
+          const _want=Math.min(300,Math.max(120,_cnt+60));
+          const _ad=await api(`/api/messages?around=${encodeURIComponent(_t)}&limit=${_want}&scope=${chatMode}`);
+          if(_ad&&Array.isArray(_ad.messages)&&_ad.messages.length&&_ad.messages.some(m=>String(m&&m.id)===_t)){ d=_ad; }
+        }catch(e){}
+      }
+    }
+  }catch(e){}
   messageStore.clear();
   const _parts=[];
   d.messages.forEach(m=>{ if(m&&m.id) messageStore.set(m.id,m); if(m&&m.file) rememberFile(m.file); _parts.push(renderMessage(m)) });
@@ -142,7 +185,7 @@ async function loadMessages(opts={}){
   hasMoreOlder=d.messages.length>=60; oldestId=d.messages.length?d.messages[0].id:null;
   hasMoreNewer=false; newestId=d.messages.length?d.messages[d.messages.length-1].id:null;
   collapseLong(); bindMediaSettleScroll(); refreshDateDividers(); loadPinnedBanner();
-  if(stick) scrollBottomSoon(); else if(opts.keepView){ messagesEl.scrollTop=prevTop+(messagesEl.scrollHeight-prevH); }
+  if(stick) scrollBottomSoon(); else if(opts.keepView){ if(opts.restoreMem){ restoreScrollState(opts.restoreMem); } else { const maxTop=Math.max(0,messagesEl.scrollHeight-messagesEl.clientHeight); messagesEl.scrollTop=Math.min(prevTop,maxTop); } }
   if(typeof updateChatFab==='function') setTimeout(updateChatFab,60);
 }
 async function loadOlder(){
@@ -521,7 +564,7 @@ function el_menu(id){return document.querySelector(`.msg-menu[data-menu-for="${C
 function unlockBubbles(except){document.querySelectorAll('.bubble[data-wlock]').forEach(bb=>{if(bb!==except){bb.style.width='';bb.removeAttribute('data-wlock')}})}
 function closeMsgMenus(){document.querySelectorAll('.msg-menu').forEach(mm=>mm.hidden=true);document.querySelectorAll('.msg-more-btn.on').forEach(b=>b.classList.remove('on'));unlockBubbles(null);if(messagesEl){messagesEl.style.paddingBottom=''}}
 document.addEventListener('click',e=>{if(!e.target.closest('.msg-menu')&&!e.target.closest('.msg-more-btn'))closeMsgMenus()});
-messagesEl.onclick=async e=>{let fi=e.target.closest('[data-file-info]'); if(fi){e.preventDefault(); e.stopPropagation(); openFileInfo(fi.dataset.fileInfo); return} let ub=e.target.closest('[data-user-info]'); if(ub){openUserInfo(ub.dataset.userInfo); return} let img=e.target.closest('img.zoomable'); if(img){openLightboxFromImg(img, messagesEl); return} let b=e.target.closest('button'); if(!b)return; if('codeCopy' in b.dataset){const code=b.closest('.code-block')?.querySelector('code')?.textContent||''; try{await copyText(code); toast('代码已复制')}catch{toast('复制失败，已尝试选中文本')} return} if(b.dataset.menu){e.stopPropagation(); const menu=el_menu(b.dataset.menu); const bubble=b.closest('.bubble'); if(messagesEl){messagesEl.style.paddingBottom='';} document.querySelectorAll('.msg-menu').forEach(mm=>{if(mm!==menu)mm.hidden=true}); document.querySelectorAll('.msg-more-btn.on').forEach(x=>{if(x!==b)x.classList.remove('on')}); unlockBubbles(bubble); if(menu){const willOpen=menu.hidden; if(willOpen){ if(bubble){bubble.style.width=Math.max(Math.ceil(bubble.getBoundingClientRect().width),120)+'px'; bubble.setAttribute('data-wlock','1');} menu.hidden=false; b.classList.add('on'); requestAnimationFrame(()=>{try{var composer=document.querySelector('.composer');var cRect=composer?composer.getBoundingClientRect():null;var mRect=menu.getBoundingClientRect();var safeBottom=cRect?(cRect.top-12):(window.innerHeight-100);if(mRect.bottom>safeBottom){var diff=Math.ceil(mRect.bottom-safeBottom)+12;var cur=parseFloat(getComputedStyle(messagesEl).paddingBottom)||100;messagesEl.style.paddingBottom=(cur+diff)+'px';messagesEl.scrollBy({top:diff,behavior:'smooth'});}}catch(err){try{menu.scrollIntoView({block:'nearest',behavior:'smooth'})}catch(e2){}}}); } else { menu.hidden=true; b.classList.remove('on'); if(bubble){bubble.style.width='';bubble.removeAttribute('data-wlock');} if(messagesEl){messagesEl.style.paddingBottom='';} } } return} if(b.dataset.open){openLightbox(b.dataset.open); return} if(b.dataset.textFile){openTextFile(b.dataset.textFile); return} let qCard=e.target.closest('[data-quote-id]'); if(qCard){ locateMessage(qCard.dataset.quoteId); return; }
+messagesEl.onclick=async e=>{let fi=e.target.closest('[data-file-info]'); if(fi){e.preventDefault(); e.stopPropagation(); openFileInfo(fi.dataset.fileInfo); return} let ub=e.target.closest('[data-user-info]'); if(ub){openUserInfo(ub.dataset.userInfo); return} let vv=e.target.closest('[data-video-open]'); if(vv){e.preventDefault(); e.stopPropagation(); expandChatVideo(vv); return} let img=e.target.closest('img.zoomable'); if(img){openLightboxFromImg(img, messagesEl); return} let b=e.target.closest('button'); if(!b)return; if('codeCopy' in b.dataset){const code=b.closest('.code-block')?.querySelector('code')?.textContent||''; try{await copyText(code); toast('代码已复制')}catch{toast('复制失败，已尝试选中文本')} return} if(b.dataset.menu){e.stopPropagation(); const menu=el_menu(b.dataset.menu); const bubble=b.closest('.bubble'); if(messagesEl){messagesEl.style.paddingBottom='';} document.querySelectorAll('.msg-menu').forEach(mm=>{if(mm!==menu)mm.hidden=true}); document.querySelectorAll('.msg-more-btn.on').forEach(x=>{if(x!==b)x.classList.remove('on')}); unlockBubbles(bubble); if(menu){const willOpen=menu.hidden; if(willOpen){ if(bubble){bubble.style.width=Math.max(Math.ceil(bubble.getBoundingClientRect().width),120)+'px'; bubble.setAttribute('data-wlock','1');} menu.hidden=false; b.classList.add('on'); requestAnimationFrame(()=>{try{var composer=document.querySelector('.composer');var cRect=composer?composer.getBoundingClientRect():null;var mRect=menu.getBoundingClientRect();var safeBottom=cRect?(cRect.top-12):(window.innerHeight-100);if(mRect.bottom>safeBottom){var diff=Math.ceil(mRect.bottom-safeBottom)+12;var cur=parseFloat(getComputedStyle(messagesEl).paddingBottom)||100;messagesEl.style.paddingBottom=(cur+diff)+'px';messagesEl.scrollBy({top:diff,behavior:'smooth'});}}catch(err){try{menu.scrollIntoView({block:'nearest',behavior:'smooth'})}catch(e2){}}}); } else { menu.hidden=true; b.classList.remove('on'); if(bubble){bubble.style.width='';bubble.removeAttribute('data-wlock');} if(messagesEl){messagesEl.style.paddingBottom='';} } } return} if(b.dataset.open){openLightbox(b.dataset.open); return} if(b.dataset.textFile){openTextFile(b.dataset.textFile); return} let qCard=e.target.closest('[data-quote-id]'); if(qCard){ locateMessage(qCard.dataset.quoteId); return; }
   let id=b.dataset.copy||b.dataset.toggle||b.dataset.edit||b.dataset.withdraw||b.dataset.restore||b.dataset.makeprivate||b.dataset.makepublic||b.dataset.reply;
   if(b.dataset.reply){ closeMsgMenus(); const targetMsg = messageStore.get(id); if(targetMsg) setReplyTarget(targetMsg); return; } let el=$(`#m-${CSS.escape(id)}`); if(b.dataset.copy){let txt=messageStore.get(id)?.content ?? el?.querySelector('.content')?.innerText ?? ''; try{await copyText(txt); toast('已复制整条消息')}catch{toast('复制失败，已尝试选中文本')}} if(b.dataset.toggle){let c=el?.querySelector('.content'); if(c){if(c.classList.contains('collapsed')){c.classList.remove('collapsed'); expandedMessages.add(id); c.dataset.manual='1'; b.textContent='收起'}else{c.classList.add('collapsed'); expandedMessages.delete(id); c.dataset.manual=''; b.textContent='展开'; if(el){el.scrollIntoView({behavior:'smooth',block:'nearest'})}}}} if(b.dataset.edit){closeMsgMenus(); editingId=id; const ed=$('#editText'); ed.value=messageStore.get(id)?.content ?? el?.querySelector('.content')?.innerText ?? ''; showDialog($('#editDialog')); setTimeout(()=>{autoGrowTextarea(ed); ed.focus()},0)} if(b.dataset.withdraw){if(confirm('确定撤回？')){await api(`/api/messages/${id}/withdraw`,{method:'POST'}); toast('已撤回')}} if(b.dataset.restore){if(confirm('确定恢复这条消息？恢复后将作为最新消息发送。')){try{await api(`/api/messages/${id}/restore`,{method:'POST'}); toast('已恢复')}catch{toast('恢复失败')}}} if(b.dataset.makeprivate){if(confirm('设为私人消息？设后仅你自己可见。')){try{await api(`/api/messages/${id}/visibility`,{method:'POST',body:JSON.stringify({private:true})}); toast('已设为私人')}catch{toast('操作失败')}}} if(b.dataset.makepublic){if(confirm('❗ 设为公开后，群聊里所有人都能看到这条消息。确定公开？')){try{await api(`/api/messages/${id}/visibility`,{method:'POST',body:JSON.stringify({private:false})}); toast('已设为公开')}catch{toast('操作失败')}}}}
 $('#saveEdit').onclick=async e=>{e.preventDefault(); await api(`/api/messages/${editingId}`,{method:'PATCH',body:JSON.stringify({content:$('#editText').value})}); closeDialog($('#editDialog'))}
@@ -837,6 +880,17 @@ function highlightAndScrollTo(el){
     setTimeout(()=>target.classList.remove('item-highlight-pulse'),1800);
   });
 }
+function expandChatVideo(btn){ try{ const src=btn.dataset.videoOpen; const poster=btn.dataset.poster||''; if(!src) return; const esc=s=>String(s??'').replace(/"/g,'&quot;'); const tmp=document.createElement('template'); tmp.innerHTML=`<video class="chat-inline-video" src="${esc(src)}"${poster?` poster="${esc(poster)}"`:''} controls autoplay playsinline webkit-playsinline preload="metadata"></video><button class="media-rate-btn" type="button" data-rate-btn title="切换倍速">1.0x</button>`; const parent=btn.parentElement; btn.replaceWith(tmp.content); try{ const v=parent?.querySelector('video.chat-inline-video'); if(v){ const pr=v.play?.(); if(pr&&pr.catch) pr.catch(()=>{}); } }catch(e){} }catch(e){} }
+function openVideoBox(src,poster=''){
+  let old=document.querySelector('.video-lightbox'); old?.remove();
+  document.documentElement.classList.add('lightbox-open'); document.body.classList.add('lightbox-open');
+  const box=document.createElement('div'); box.className='lightbox video-lightbox';
+  box.innerHTML=`<button class="lightbox-close" type="button">×</button><video src="${src}" ${poster?`poster="${poster}"`:''} controls autoplay preload="metadata" playsinline></video>`;
+  const close=()=>{box.remove(); document.documentElement.classList.remove('lightbox-open'); document.body.classList.remove('lightbox-open')};
+  box.onclick=e=>{if(e.target===box||e.target.closest('.lightbox-close')) close()};
+  document.addEventListener('keydown',function esc(e){if(e.key==='Escape'){close();document.removeEventListener('keydown',esc)}});
+  document.body.appendChild(box);
+}
 function openLightboxFromImg(imgEl, container){
   const sel = imgEl.hasAttribute('data-img-open') ? '[data-img-open]' : 'img.zoomable';
   const imgs=[...(container||document).querySelectorAll(sel)];
@@ -1086,7 +1140,11 @@ async function resyncOnResume(){
   if(!_ws||_ws.readyState!==WebSocket.OPEN){connectWs()}
   if(typeof scheduleMidnightRefresh==='function') scheduleMidnightRefresh(); // 重算下个午夜（防后台节流漏触）
   if(_resyncTimer)return; _resyncTimer=setTimeout(()=>_resyncTimer=null,1500);
-  try{await loadMessages({forceScroll:false, keepView:true})}catch{}
+  let _mem=null; try{ _mem=captureScrollState(); }catch(e){}
+  modeKeepActive=true;
+  try{ await loadMessages({forceScroll:false, keepView:true, restoreMem:_mem}); }
+  catch(e){}
+  setTimeout(()=>{ modeKeepActive=false; },1200);
 }
 document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')resyncOnResume()});
 window.addEventListener('online',resyncOnResume);

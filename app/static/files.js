@@ -8,7 +8,7 @@ function size(n){const u=['B','KB','MB','GB','TB'];let i=0;while(n>=1024&&i<u.le
 function esc(s){return String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]))}
 function preview(f){
   if(f.kind==='image') return `<div class="file-preview"><img class="zoomable" data-full="${f.public_view_url||f.view_url||f.url}" src="${f.preview_url||f.public_view_url||f.view_url||f.url}" loading="lazy" alt="${esc(f.name)}"></div>`;
-  if(f.kind==='video'){const poster=f.public_preview_url||f.preview_url||'';return `<button type="button" class="file-preview video-thumb ${poster?'':'no-poster'}" data-video-open="${f.public_view_url||f.view_url||f.url}" data-poster="${poster}" aria-label="播放视频">${poster?`<img src="${poster}" alt="${esc(f.name)}" loading="lazy" onerror="this.style.display='none'">`:''}<span class="video-placeholder">${fiImg(f.name,f.kind)}</span><span class="play-badge">▶</span></button>`;}
+  if(f.kind==='video'){const poster=f.public_preview_url||f.preview_url||'';return `<button type="button" class="file-preview video-thumb ${poster?'':'no-poster'}" data-video-open="${f.public_view_url||f.view_url||f.url}" data-poster="${poster}" aria-label="播放视频">${poster?`<img src="${poster}" alt="${esc(f.name)}" loading="lazy" onerror="this.style.display='none'">`:''}<span class="video-placeholder">${fiImg(f.name,f.kind)}</span><span class="play-badge"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg></span></button>`;}
   if(f.kind==='audio') return `<div class="file-preview"><audio src="${f.public_view_url||f.view_url||f.url}" controls preload="metadata"></audio></div>`;
   if(f.kind==='text') return ''; // 文本/普通文件无预览块（非媒体类型不显示多余 emoji）
   return '';

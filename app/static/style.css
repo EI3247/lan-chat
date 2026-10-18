@@ -99,7 +99,7 @@ html.modal-open,body.modal-open{overflow:hidden!important;overscroll-behavior:no
 @media(max-width:720px){.files-page{padding-bottom:148px}.files-page .page-shell{padding-bottom:154px}.files-page .file-titlebar{display:none}.files-page .file-bottom-bar{bottom:8px;width:calc(100vw - 16px);grid-template-columns:1fr 92px;gap:7px;border-radius:18px;padding:9px}.files-page .file-bottom-bar input,.files-page .file-bottom-bar select,.files-page .file-bottom-bar button,.files-page .file-bottom-bar a{height:38px;min-width:0;font-size:13px;padding:7px 8px;border-radius:12px}.files-page .file-list{grid-template-columns:1fr 1fr;gap:7px}.files-page .file-item{padding:7px;border-radius:14px}.files-page .file-preview{height:86px;border-radius:10px}.files-page .file-card{padding:7px}.files-page .file-info .fn{font-size:13px}.files-page .file-info .fs{font-size:10.5px}.files-page .actions button,.files-page .actions a{font-size:10.5px;min-height:27px;padding:4px 7px}.admin-files{grid-template-columns:1fr!important;gap:7px!important}.admin-media-preview{width:112px!important;height:72px!important}.admin-file-item .actions select{width:auto!important;min-width:86px}.msg-admin-row textarea{height:58px!important}}
 
 /* File external viewer + normal video preview popup */
-.file-preview.video-thumb{position:relative;width:100%;border:1px solid var(--line);padding:0;cursor:pointer;color:#fff}.file-preview.video-thumb img{width:100%;height:100%;object-fit:contain}.file-preview.video-thumb:has(img[style*="display: none"]){background:linear-gradient(135deg,#1f2937,#111827)}.play-badge{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:46px;height:46px;border-radius:999px;display:grid;place-items:center;background:rgba(15,23,42,.72);backdrop-filter:blur(6px);box-shadow:0 8px 28px rgba(0,0,0,.25);font-size:20px;padding-left:3px}.video-lightbox video{max-width:min(1080px,96vw);max-height:86vh;border-radius:16px;background:#000;box-shadow:0 20px 80px rgba(0,0,0,.42)}
+.file-preview.video-thumb{position:relative;width:100%;border:1px solid var(--line);padding:0;cursor:pointer;color:#fff}.file-preview.video-thumb img{width:100%;height:100%;object-fit:contain}.file-preview.video-thumb:has(img[style*="display: none"]){background:linear-gradient(135deg,#1f2937,#111827)}.play-badge{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:auto;height:auto;background:none;border:0;border-radius:0;box-shadow:none;backdrop-filter:none;-webkit-backdrop-filter:none;display:grid;place-items:center;padding:0}.play-badge svg{width:46px;height:46px;fill:rgba(255,255,255,.78);display:block;transform:translateX(6%);filter:drop-shadow(0 2px 8px rgba(0,0,0,.45))}.video-lightbox video{max-width:min(1080px,96vw);max-height:86vh;border-radius:16px;background:#000;box-shadow:0 20px 80px rgba(0,0,0,.42)}
 @media(max-width:720px){.play-badge{width:38px;height:38px;font-size:16px}.video-lightbox video{max-width:100vw;max-height:84vh;border-radius:10px}}
 
 /* Admin preview sync + collapsible users */
@@ -175,7 +175,7 @@ body.admin-page{overflow-x:clip!important}.admin-page *{box-sizing:border-box}.a
 /* Text/JS editor horizontal scroll: keep long code lines readable */
 #textFileContent{overflow-x:auto!important;overflow-y:auto!important;white-space:pre!important;word-wrap:normal!important;overflow-wrap:normal!important;touch-action:pan-x pan-y!important;-webkit-overflow-scrolling:touch!important}#textFileContent[readonly]{user-select:text!important}
 /* Video preview placeholders: avoid empty video cards when poster is missing */
-.video-thumb{background:linear-gradient(135deg,#1f2937,#111827)!important}.video-thumb .video-placeholder{position:absolute;inset:0;display:grid;place-items:center;font-size:34px;color:rgba(255,255,255,.38);pointer-events:none}.video-thumb img+.video-placeholder{display:none}.video-thumb.no-poster .video-placeholder{display:grid}.video-thumb.no-poster .play-badge{box-shadow:0 10px 30px rgba(0,0,0,.25)}
+.video-thumb{background:linear-gradient(135deg,#1f2937,#111827)!important}.video-thumb .video-placeholder{position:absolute;inset:0;display:grid;place-items:center;font-size:34px;color:rgba(255,255,255,.38);pointer-events:none}.video-thumb img+.video-placeholder{display:none}.video-thumb.no-poster .video-placeholder{display:grid}.video-thumb.no-poster .play-badge{box-shadow:none}
 
 /* Rich file detail dialog: readable, copy-friendly, and scroll-contained */
 .file-info-dialog.dialog[open]{position:fixed!important;inset:0!important;width:100vw!important;height:100dvh!important;max-width:none!important;max-height:none!important;margin:0!important;padding:14px!important;overflow:hidden!important;overscroll-behavior:none!important;touch-action:none!important;background:rgba(15,23,42,.28)!important;backdrop-filter:blur(8px)}
@@ -326,8 +326,6 @@ body.admin-page{overflow-x:clip!important}.admin-page *{box-sizing:border-box}.a
 .mode-tip{font-size:12px;line-height:1.5;margin:8px 2px 0}
 .file-mode-seg{margin:10px auto 0;display:flex;justify-content:center;width:max-content}
 .msg-lock{margin-left:4px;font-size:12px;opacity:.85}
-.msg.msg-private .bubble{box-shadow:inset 3px 0 0 #a855f7}
-.msg.mine.msg-private .bubble{box-shadow:inset -3px 0 0 #a855f7}
 .status.priv-text{color:#7c3aed}
 .status.grp-text{color:#2563eb}
 
@@ -2310,3 +2308,15 @@ body.private-mode .composer #sendBtn.has-content{
 .file-info-badge .fi-svg{width:53px;height:53px;border-radius:15px}
 .search-file-icon .fi-svg{width:29px;height:29px}
 }
+
+/* Chat video thumb in bubble: poster + play badge, click opens player (no inline <video>, no native spinner flash) */
+.bubble .media .chat-video-thumb{position:relative;display:inline-block;width:auto;max-width:100%;height:auto;min-height:0;max-height:460px;overflow:hidden;border:0;border-radius:0;background:#111827;margin:0;padding:0;vertical-align:top}
+.bubble .media .chat-video-thumb img{width:auto;height:auto;max-width:100%;max-height:460px;object-fit:contain;display:block;margin:0 auto}
+.bubble .media .chat-video-thumb .video-placeholder{font-size:34px}
+.bubble .media .chat-video-thumb .play-badge{width:auto;height:auto;padding:0;background:none;border:0;border-radius:0;box-shadow:none;backdrop-filter:none;-webkit-backdrop-filter:none;display:grid;place-items:center}.bubble .media .chat-video-thumb .play-badge svg{width:56px;height:56px;fill:rgba(255,255,255,.78);display:block;transform:translateX(6%);filter:drop-shadow(0 2px 10px rgba(0,0,0,.45))}
+.bubble .media .chat-video-thumb:hover .play-badge{transform:translate(-50%,-50%) scale(1.06)}
+@media(max-width:720px){.bubble .media .chat-video-thumb img{max-height:320px}.bubble .media .chat-video-thumb .play-badge{width:auto;height:auto}.bubble .media .chat-video-thumb .play-badge svg{width:46px;height:46px}}
+
+/* Chat inline video: plays directly inside bubble after tap */
+.bubble .media video.chat-inline-video{display:block;width:auto;height:auto;max-width:100%;max-height:460px;object-fit:contain;background:#000}
+@media(max-width:720px){.bubble .media video.chat-inline-video{max-height:320px}}
